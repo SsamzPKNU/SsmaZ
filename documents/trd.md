@@ -1,0 +1,58 @@
+# [TRD] 프로젝트3 - 시스템 설계서
+
+## 1. 기술 스택 (Tech Stack)
+- **Frontend**: React (Vite), Tailwind CSS
+- **Backend**: FastAPI (Python 3.10+)
+- **Database**: MySQL 5.5 (Engine: InnoDB)
+- **Auth**: Native JWT (OAuth2 Password Flow) + Social Login Ready
+
+## 2. 데이터베이스 설계 (ERD 요약)
+- 모든 테이블은 **단일 Primary Key (`id`)**와 **AUTO_INCREMENT**를 사용함.
+- **Multi-tenancy**: 모든 주요 데이터는 `academy_id`를 참조하여 학원별 데이터 격리.
+- **삭제 정책**: 부모 데이터 삭제 시 자식 데이터 자동 삭제 (`ON DELETE CASCADE`).
+
+### 핵심 테이블 구조
+- `Academies`: 학원 기본 정보.
+- `Users`: 로그인 정보 (password_hash, social_provider 포함).
+- `Students`: 학생 정보 및 `academy_id` 외래키 참조.
+- `Attendance`: 출결 기록 (status: ENUM 사용).
+- `Payments`: 수납 관리 정보.
+- `DailyLogs`: 학습 일지 및 문자 전송 상태.
+
+## 3. 인증 시스템 (Authentication)
+- **JWT (Json Web Token)**: 로그인 시 Access Token 발급.
+- **Security**: `passlib[bcrypt]`를 이용한 비밀번호 암호화.
+- **Social**: 카카오/네이버 연동을 고려한 `social_provider`, `social_id` 필드 선반영.
+
+## 4. 기존 기능 통합: 문자 리뷰 모델
+- **기능**: 사전에 정의된 문자 리뷰 로직 및 서버 연동.
+- **통합 로직**: 
+  - `DailyLogs` 생성 시 혹은 `Attendance` 상태 변경 시 특정 훅(Hook)을 통해 문자 모델 호출.
+  - `is_sent` 플래그를 통해 중복 발송 방지.
+
+## 5. 개발 가이드 (For Antigravity & Team)
+- **Branch 전략**: `main` (배포), `feat/ 기능명` (개발용 브랜치).
+- **Vibe Coding 규칙**:
+  - 에이전트는 코드 작성 시 비전공자 팀원을 위해 상세한 **한글 주석**을 포함함.
+  - API 에러 발생 시 프론트엔드에서 처리하기 쉽도록 명확한 에러 메시지(JSON)를 반환함.
+
+## 6. 프로젝트 폴더 구조 재편 (Refactoring)
+기존 `TextReview/backend` 구조를 프로젝트 루트의 `backend/`로 승격시키고, 문자 리뷰 기능을 모듈화함.
+
+```text
+project3/
+├── backend/                # FastAPI 메인 백엔드
+│   ├── app/
+│   │   ├── api/            # 출결, 결제, 유저 관련 엔드포인트
+│   │   ├── core/           # 보안(JWT), DB 연결 설정
+│   │   ├── models/         # SQLAlchemy 모델 (Users, Students 등)
+│   │   ├── schemas/        # Pydantic 데이터 검증 모델
+│   │   └── services/       # 비즈니스 로직
+│   │       └── text_review/ # [이전 완료] 기존 문자 리뷰 로직 및 모델
+│   ├── tests/              # API 테스트 코드
+│   ├── .env                # DB_URL, JWT_SECRET 등 환경변수
+│   ├── main.py             # 서버 실행 엔트리 포인트
+│   └── requirements.txt
+├── frontend/               # React 프로젝트 (Vite)
+├── documents/              # PRD, TRD, ERD 문서
+└── .gitignore
