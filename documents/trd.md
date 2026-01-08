@@ -4,7 +4,7 @@
 - **Frontend**: React (Vite), Tailwind CSS
 - **Backend**: FastAPI (Python 3.10+)
 - **Database**: MySQL 5.5 (Engine: InnoDB)
-- **Auth**: Native JWT (OAuth2 Password Flow) + Social Login Ready
+- **Auth**: Native JWT (OAuth2 Password Flow) 기반 직접 로그인 (ID/PW)
 
 ## 2. 데이터베이스 설계 (ERD 요약)
 - 모든 테이블은 **단일 Primary Key (`id`)**와 **AUTO_INCREMENT**를 사용함.
@@ -13,7 +13,7 @@
 
 ### 핵심 테이블 구조
 - `Academies`: 학원 기본 정보.
-- `Users`: 로그인 정보 (password_hash, social_provider 포함).
+- `Users`: 로그인 정보 (username, password_hash, name, phone, role [ADMIN, TEACHER, STUDENT] 등).
 - `Students`: 학생 정보 및 `academy_id` 외래키 참조.
 - `Attendance`: 출결 기록 (status: ENUM 사용).
 - `Payments`: 수납 관리 정보.
@@ -22,7 +22,8 @@
 ## 3. 인증 시스템 (Authentication)
 - **JWT (Json Web Token)**: 로그인 시 Access Token 발급.
 - **Security**: `passlib[bcrypt]`를 이용한 비밀번호 암호화.
-- **Social**: 카카오/네이버 연동을 고려한 `social_provider`, `social_id` 필드 선반영.
+- **Security**: `passlib[bcrypt]`를 이용한 비밀번호 암호화 및 유효성 검증.
+- **Direct Login**: 자체 로그인 시스템만 구현 (소셜 로그인 미사용).
 
 ## 4. 기존 기능 통합: 문자 리뷰 모델
 - **기능**: 사전에 정의된 문자 리뷰 로직 및 서버 연동.
@@ -36,10 +37,7 @@
   - 에이전트는 코드 작성 시 비전공자 팀원을 위해 상세한 **한글 주석**을 포함함.
   - API 에러 발생 시 프론트엔드에서 처리하기 쉽도록 명확한 에러 메시지(JSON)를 반환함.
 
-## 6. 프로젝트 폴더 구조 재편 (Refactoring)
-기존 `TextReview/backend` 구조를 프로젝트 루트의 `backend/`로 승격시키고, 문자 리뷰 기능을 모듈화함.
-
-```text
+## 6. 프로젝트 폴더 구조
 project3/
 ├── backend/                # FastAPI 메인 백엔드
 │   ├── app/
