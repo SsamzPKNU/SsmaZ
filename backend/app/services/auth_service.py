@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin
-from app.core.security import hash_password, verify_password, create_access_token
-from typing import Optional
+from app.core.security import hash_password, verify_password, create_access_token, create_access_token_with_csrf
+from typing import Optional, Tuple
 
 
 class AuthService:
@@ -121,3 +121,25 @@ class AuthService:
         # JWT 토큰 생성
         access_token = create_access_token(data=token_data)
         return access_token
+    
+    @staticmethod
+    def create_user_token_with_csrf(user: User) -> Tuple[str, str]:
+        """
+        CSRF 토큰이 포함된 JWT 토큰 생성 (httpOnly 쿠키 방식용)
+        
+        Args:
+            user: User 객체
+            
+        Returns:
+            (JWT 토큰, CSRF 토큰) 튜플
+        """
+        token_data = {
+            "sub": user.username,
+            "user_id": user.user_id,
+            "academy_id": user.academy_id,
+            "role": user.user_role.value
+        }
+        
+        # CSRF 토큰이 포함된 JWT 토큰 생성
+        access_token, csrf_token = create_access_token_with_csrf(data=token_data)
+        return access_token, csrf_token

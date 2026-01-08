@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+import re
 
 
 class UserRole(str, Enum):
@@ -55,17 +56,22 @@ class UserCreate(UserBase):
     회원가입 요청 스키마
     비밀번호 필드 추가
     """
-    password: str = Field(..., min_length=6, max_length=100, description="비밀번호")
+    password: str = Field(..., min_length=8, max_length=100, description="비밀번호")
     
     @validator('password')
     def validate_password(cls, v):
         """
         비밀번호 강도 검증
-        - 최소 6자 이상
-        - 영문과 숫자 포함 권장
+        - 최소 8자 이상
+        - 영문자 포함 필수
+        - 숫자 포함 필수
         """
-        if len(v) < 6:
-            raise ValueError('비밀번호는 최소 6자 이상이어야 합니다')
+        if len(v) < 8:
+            raise ValueError('비밀번호는 최소 8자 이상이어야 합니다')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('비밀번호에 영문자가 포함되어야 합니다')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('비밀번호에 숫자가 포함되어야 합니다')
         return v
 
 
@@ -103,16 +109,19 @@ class UserResponse(UserBase):
 
 class Token(BaseModel):
     """
-    JWT 토큰 응답 스키마
+    JWT 토큰 응답 스키마 (httpOnly 쿠키 + CSRF 토큰 방식)
+    
+    - access_token: httpOnly 쿠키로 저장됨
+    - csrf_token: JavaScript에서 접근 가능 (헤더로 전송)
     """
-    access_token: str = Field(..., description="JWT 액세스 토큰")
+    csrf_token: str = Field(..., description="CSRF 방지용 토큰")
     token_type: str = Field(default="bearer", description="토큰 타입")
     user: UserResponse = Field(..., description="사용자 정보")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "csrf_token": "abc123xyz...",
                 "token_type": "bearer",
                 "user": {
                     "user_id": 1,

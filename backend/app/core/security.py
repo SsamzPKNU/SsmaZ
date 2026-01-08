@@ -2,6 +2,7 @@
 보안 관련 유틸리티 함수
 - 비밀번호 해싱 및 검증
 - JWT 토큰 생성 및 검증
+- CSRF 토큰 생성
 """
 
 from datetime import datetime, timedelta
@@ -9,6 +10,7 @@ from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
 import hashlib
+import secrets
 import os
 from dotenv import load_dotenv
 
@@ -17,6 +19,14 @@ load_dotenv()
 
 # JWT 설정값 가져오기
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+# SECRET_KEY 강도 검증 (보안 강화)
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise ValueError(
+        "SECRET_KEY must be at least 32 characters. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
+
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
@@ -129,3 +139,92 @@ def verify_token(token: str) -> Optional[str]:
     except JWTError:
         # 토큰이 유효하지 않거나 만료됨
         return None
+
+
+def get_token_payload(token: str) -> Optional[dict]:
+    """
+    JWT 토큰에서 전체 payload를 추출합니다.
+    
+    Args:
+        token: JWT 토큰
+        
+    Returns:
+        토큰 payload (user_id, username, academy_id, role 등) 또는 None
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
+
+
+def generate_csrf_token() -> str:
+    """
+    CSRF 토큰을 생성합니다.
+    
+    CSRF(Cross-Site Request Forgery) 공격을 방지하기 위한 토큰입니다.
+    이 토큰은 JWT 토큰에 포함되어 저장되고,
+    API 요청 시 헤더로 전송되어 검증됩니다.
+    
+    Returns:
+        32바이트 랜덤 문자열
+    """
+    return secrets.token_urlsafe(32)
+
+
+def create_access_token_with_csrf(data: dict, expires_delta: Optional[timedelta] = None) -> tuple:
+    """
+    CSRF 토큰이 포함된 JWT 액세스 토큰을 생성합니다.
+    
+    Args:
+        data: 토큰에 포함할 데이터 (예: {"sub": "username"})
+        expires_delta: 토큰 만료 시간 (기본값: 30분)
+        
+    Returns:
+        (JWT 토큰, CSRF 토큰) 튜플
+    """
+    # CSRF 토큰 생성
+    csrf_token = generate_csrf_token()
+    
+    to_encode = data.copy()
+    
+    # CSRF 토큰을 JWT payload에 추가
+    to_encode.update({"csrf": csrf_token})
+    
+    # 만료 시간 설정
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})
+    
+    # JWT 토큰 생성
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    
+    return encoded_jwt, csrf_token
+
+
+def verify_csrf_token(token: str, csrf_token: str) -> bool:
+    """
+    JWT 토큰에 포함된 CSRF 토큰을 검증합니다.
+    
+    Args:
+        token: JWT 토큰
+        csrf_token: 헤더로 전송된 CSRF 토큰
+        
+    Returns:
+        CSRF 토큰이 일치하면 True, 아니면 False
+    """
+    payload = get_token_payload(token)
+    
+    if not payload:
+        return False
+    
+    stored_csrf = payload.get("csrf")
+    
+    if not stored_csrf:
+        return False
+    
+    # 상수 시간 비교 (타이밍 공격 방지)
+    return secrets.compare_digest(stored_csrf, csrf_token)

@@ -1,14 +1,21 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
 from app.services.text_review.review_generator import ReviewGenerator
 from app.api.auth import router as auth_router  # 인증 라우터 추가
 from app.core.database import engine, Base  # 데이터베이스 설정
+from app.models.login_log import LoginLog  # 로그인 로그 모델 (테이블 자동 생성용)
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 from dotenv import load_dotenv
 
 # 환경 변수 로드
 load_dotenv()
+
+# Rate Limiter 설정 (IP 기반)
+limiter = Limiter(key_func=get_remote_address)
 
 # 데이터베이스 테이블 생성
 # 앱 시작 시 모든 모델의 테이블을 자동으로 생성합니다
@@ -21,14 +28,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Rate Limiter 등록
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS 설정 (라우터보다 먼저 등록)
-# 개발 환경에서는 모든 origin 허용
+# httpOnly 쿠키 전송을 위해 credentials=True 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 개발 환경: 모든 origin 허용
-    allow_credentials=False,  # allow_origins=["*"]일 때는 False로 설정
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # 쿠키 사용 시 구체적인 origin 필요
+    allow_credentials=True,  # 쿠키 전송 허용
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Set-Cookie"],  # 쿠키 헤더 노출
 )
 
 # 인증 라우터 등록
