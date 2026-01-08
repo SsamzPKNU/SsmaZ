@@ -46,7 +46,7 @@ class LoginLog(Base):
     # 사용자 ID (외래 키)
     user_id = Column(
         Integer,
-        ForeignKey('users.user_id', ondelete='SET NULL'),
+        ForeignKey('Users.user_id', ondelete='SET NULL'),
         nullable=True,
         comment="로그인한 사용자 ID"
     )

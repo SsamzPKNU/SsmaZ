@@ -38,6 +38,8 @@ class ReviewResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """헬스체크 응답 모델"""
+    model_config = {"protected_namespaces": ()}
+    
     status: str
     ollama_connected: bool
     model_name: str

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
 from app.services.text_review.review_generator import ReviewGenerator
 from app.api.auth import router as auth_router  # 인증 라우터 추가
+from app.api.attendance import router as attendance_router # 출결 라우터 추가
 from app.core.database import engine, Base  # 데이터베이스 설정
 from app.models.login_log import LoginLog  # 로그인 로그 모델 (테이블 자동 생성용)
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -45,6 +46,7 @@ app.add_middleware(
 
 # 인증 라우터 등록
 app.include_router(auth_router)
+app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")

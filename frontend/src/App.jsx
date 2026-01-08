@@ -8,6 +8,7 @@ import { isAuthenticated } from './services/api';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
+import AttendanceDashboard from './pages/AttendanceDashboard';
 
 /**
  * 보호된 라우트 컴포넌트
@@ -53,6 +54,14 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <HomePage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/attendance"
+                    element={
+                        <ProtectedRoute>
+                            <AttendanceDashboard />
                         </ProtectedRoute>
                     }
                 />

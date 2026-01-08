@@ -35,7 +35,7 @@ class User(Base):
     - phone: 전화번호
     - created_at: 계정 생성 시간
     """
-    __tablename__ = "users"
+    __tablename__ = "Users"
     
     # 기본 키
     user_id = Column(
