@@ -2,27 +2,37 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
 from app.services.text_review.review_generator import ReviewGenerator
+from app.api.auth import router as auth_router  # 인증 라우터 추가
+from app.core.database import engine, Base  # 데이터베이스 설정
 import os
 from dotenv import load_dotenv
 
 # 환경 변수 로드
 load_dotenv()
 
+# 데이터베이스 테이블 생성
+# 앱 시작 시 모든 모델의 테이블을 자동으로 생성합니다
+Base.metadata.create_all(bind=engine)
+
 # FastAPI 앱 생성
 app = FastAPI(
-    title="학원 수업 리뷰 생성 API",
-    description="강사가 학생의 수업 리뷰를 학부모에게 보낼 문자 메시지를 자동 생성합니다",
+    title="학원 관리 서비스 SsmaZ API",
+    description="학원 수업 리뷰 생성 및 사용자 인증 기능을 제공합니다",
     version="1.0.0"
 )
 
-# CORS 설정 (필요시)
+# CORS 설정 (라우터보다 먼저 등록)
+# 개발 환경에서는 모든 origin 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 특정 도메인으로 제한
-    allow_credentials=True,
+    allow_origins=["*"],  # 개발 환경: 모든 origin 허용
+    allow_credentials=False,  # allow_origins=["*"]일 때는 False로 설정
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 인증 라우터 등록
+app.include_router(auth_router)
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -38,10 +48,12 @@ review_generator = ReviewGenerator(
 async def root():
     """API 루트 엔드포인트"""
     return {
-        "message": "학원 수업 리뷰 생성 API",
+        "message": "학원 관리 서비스 SsmaZ API",
         "version": "1.0.0",
         "endpoints": {
             "health": "/health",
+            "signup": "/auth/signup",
+            "login": "/auth/login",
             "generate_review": "/api/review/generate",
             "docs": "/docs"
         }
