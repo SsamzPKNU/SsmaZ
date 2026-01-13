@@ -34,7 +34,16 @@ function HomePage() {
             <header className="bg-white shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex justify-between items-center">
-                        <h1 className="text-2xl font-bold text-primary-700">SsmaZ</h1>
+                        <div className="flex items-center space-x-4">
+                            <h1 className="text-2xl font-bold text-primary-700">SsmaZ</h1>
+                            <button
+                                onClick={() => navigate('/attendance')}
+                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition font-medium text-sm flex items-center"
+                            >
+                                <span className="mr-1.5">📋</span>
+                                출결 관리
+                            </button>
+                        </div>
                         <button
                             onClick={handleLogout}
                             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition"
@@ -124,27 +133,28 @@ function HomePage() {
                     </div>
                 </div>
 
-                {/* 기능 안내 */}
-                <div className="mt-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl shadow-xl p-8 text-white">
-                    <h3 className="text-2xl font-bold mb-4">🚀 다음 기능을 준비 중입니다</h3>
-                    <ul className="space-y-2">
-                        <li className="flex items-center">
-                            <span className="mr-2">✅</span>
-                            학생 관리
-                        </li>
-                        <li className="flex items-center">
-                            <span className="mr-2">✅</span>
-                            수업 일정 관리
-                        </li>
-                        <li className="flex items-center">
-                            <span className="mr-2">✅</span>
-                            출결 관리
-                        </li>
-                        <li className="flex items-center">
-                            <span className="mr-2">✅</span>
-                            성적 관리
-                        </li>
-                    </ul>
+                {/* 빠른 작업 */}
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div
+                        onClick={() => navigate('/attendance')}
+                        className="cursor-pointer bg-white border-2 border-primary-500 rounded-2xl p-6 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-primary-700">📋 출결 대시보드 바로가기</h3>
+                            <span className="text-2xl">➡️</span>
+                        </div>
+                        <p className="text-gray-600">오늘 학생들의 등하원 상태를 확인하고 관리합니다.</p>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl shadow-xl p-6 text-white">
+                        <h3 className="text-xl font-bold mb-3">🚀 준비 중인 기능</h3>
+                        <div className="grid grid-cols-2 gap-2 text-sm opacity-90">
+                            <div className="flex items-center">✅ 학생 관리</div>
+                            <div className="flex items-center">✅ 수업 일정</div>
+                            <div className="flex items-center">✅ 성적 관리</div>
+                            <div className="flex items-center">✅ 알림 설정</div>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>

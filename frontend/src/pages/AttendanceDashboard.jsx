@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const AttendanceDashboard = () => {
+    const navigate = useNavigate();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -101,7 +103,16 @@ const AttendanceDashboard = () => {
 
     return (
         <div className="max-w-6xl mx-auto p-6">
-            <h1 className="text-3xl font-bold mb-8 text-gray-800">출결 관리 대시보드</h1>
+            <div className="flex items-center space-x-4 mb-8">
+                <button
+                    onClick={() => navigate('/')}
+                    className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition"
+                    title="홈으로 돌아가기"
+                >
+                    🏠
+                </button>
+                <h1 className="text-3xl font-bold text-gray-800">출결 관리 대시보드</h1>
+            </div>
 
             <div className="bg-white shadow-xl rounded-xl overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
