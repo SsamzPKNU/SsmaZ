@@ -142,3 +142,4 @@ vite.config.ts.timestamp-*
 backend/.DS_Store
 backend/app/.DS_Store
 backend/app/services/.DS_Store
+CLAUDE.md
