@@ -1,6 +1,8 @@
 /**
- * 로그인 페이지
- * 사용자 인증을 처리합니다
+ * 📄 파일명: LoginPage.jsx
+ * 📝 설명: 로그인 페이지 - 사용자 인증을 처리합니다
+ * 🔗 API: POST /auth/login
+ * ✏️ 수정 시 주의: formData의 필드명은 백엔드 API와 일치해야 합니다
  */
 
 import { useState } from 'react';
@@ -65,29 +67,29 @@ function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
+        <div className="page-wrapper">
             <div className="max-w-md w-full">
                 {/* 로고 및 제목 */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-primary-700 mb-2">SsmaZ</h1>
-                    <p className="text-gray-600">학원 관리 서비스</p>
+                <div className="text-center mb-3">
+                    <h1 className="logo">SsmaZ</h1>
+                    <p className="text-gray">학원 관리 서비스</p>
                 </div>
 
                 {/* 로그인 폼 */}
-                <div className="bg-white rounded-2xl shadow-xl p-8">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">로그인</h2>
+                <div className="card-lg">
+                    <h2 className="text-2xl font-bold text-gray-dark mb-3">로그인</h2>
 
                     {/* 에러 메시지 */}
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                        <div className="alert alert-error">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit}>
                         {/* 아이디 입력 */}
-                        <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="form-group">
+                            <label htmlFor="username" className="form-label">
                                 아이디
                             </label>
                             <input
@@ -97,14 +99,14 @@ function LoginPage() {
                                 value={formData.username}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                className="input"
                                 placeholder="아이디를 입력하세요"
                             />
                         </div>
 
                         {/* 비밀번호 입력 */}
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="form-group">
+                            <label htmlFor="password" className="form-label">
                                 비밀번호
                             </label>
                             <input
@@ -114,7 +116,7 @@ function LoginPage() {
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                className="input"
                                 placeholder="비밀번호를 입력하세요"
                             />
                         </div>
@@ -123,17 +125,17 @@ function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="btn btn-primary btn-lg mt-2"
                         >
                             {loading ? '로그인 중...' : '로그인'}
                         </button>
                     </form>
 
                     {/* 회원가입 링크 */}
-                    <div className="mt-6 text-center">
-                        <p className="text-gray-600">
+                    <div className="mt-3 text-center">
+                        <p className="text-gray">
                             계정이 없으신가요?{' '}
-                            <Link to="/signup" className="text-primary-600 hover:text-primary-700 font-semibold">
+                            <Link to="/signup" className="link">
                                 회원가입
                             </Link>
                         </p>
@@ -141,7 +143,7 @@ function LoginPage() {
                 </div>
 
                 {/* 푸터 */}
-                <p className="text-center text-gray-500 text-sm mt-8">
+                <p className="text-center text-gray text-sm mt-3">
                     © 2026 SsmaZ. All rights reserved.
                 </p>
             </div>

@@ -1,6 +1,8 @@
 /**
- * 메인 App 컴포넌트
- * 라우팅 및 전역 설정
+ * 📄 파일명: App.jsx
+ * 📝 설명: 메인 App 컴포넌트 - 라우팅 및 접근 제어를 담당합니다
+ * 🔗 API: 없음 (라우팅만 처리)
+ * ✏️ 수정 시 주의: 새 페이지 추가 시 여기에 Route를 추가해야 합니다
  */
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -30,7 +32,7 @@ function App() {
     return (
         <Router>
             <Routes>
-                {/* 공개 라우트 */}
+                {/* 공개 라우트 - 로그인하지 않은 사용자만 접근 가능 */}
                 <Route
                     path="/login"
                     element={
@@ -48,7 +50,7 @@ function App() {
                     }
                 />
 
-                {/* 보호된 라우트 */}
+                {/* 보호된 라우트 - 로그인한 사용자만 접근 가능 */}
                 <Route
                     path="/"
                     element={
@@ -66,7 +68,7 @@ function App() {
                     }
                 />
 
-                {/* 404 처리 */}
+                {/* 404 처리 - 존재하지 않는 경로는 홈으로 */}
                 <Route
                     path="*"
                     element={<Navigate to="/" replace />}

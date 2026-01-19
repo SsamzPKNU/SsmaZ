@@ -85,6 +85,14 @@ cd frontend
 npm install
 ```
 
+설치되는 주요 패키지:
+- React 18 (UI 라이브러리)
+- React Router (페이지 라우팅)
+- Axios (API 통신)
+- Vite (빌드 도구)
+
+> **참고**: TypeScript와 Tailwind CSS는 제거되었습니다. 순수 JavaScript와 일반 CSS를 사용합니다.
+
 설치 시간: 약 2-3분 소요
 
 #### 3-2. Frontend 개발 서버 실행

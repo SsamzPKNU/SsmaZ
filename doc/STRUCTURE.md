@@ -18,7 +18,8 @@ project3/
 │   │   │
 │   │   ├── 📂 api/                 # API 엔드포인트
 │   │   │   ├── __init__.py
-│   │   │   └── 📄 auth.py          # ⭐ 인증 API (회원가입, 로그인)
+│   │   │   ├── 📄 auth.py          # ⭐ 인증 API (회원가입, 로그인)
+│   │   │   └── 📄 attendance.py    # ⭐ 출결 API (출결 조회, 체크)
 │   │   │
 │   │   ├── 📂 core/                # 핵심 설정
 │   │   │   ├── __init__.py
@@ -27,16 +28,21 @@ project3/
 │   │   │
 │   │   ├── 📂 models/              # 데이터베이스 모델 (SQLAlchemy)
 │   │   │   ├── __init__.py
-│   │   │   └── 📄 user.py          # ⭐ User 테이블 모델
+│   │   │   ├── 📄 user.py          # ⭐ User 테이블 모델
+│   │   │   ├── 📄 student.py       # ⭐ Student 테이블 모델
+│   │   │   ├── 📄 attendance.py    # ⭐ Attendance 테이블 모델
+│   │   │   └── 📄 login_log.py     # LoginLog 테이블 모델
 │   │   │
 │   │   ├── 📂 schemas/             # Pydantic 스키마 (API 입출력)
 │   │   │   ├── __init__.py
 │   │   │   ├── 📄 user.py          # ⭐ User 관련 스키마
+│   │   │   ├── 📄 attendance.py    # ⭐ Attendance 관련 스키마
 │   │   │   └── 📄 text_review.py   # 기존 리뷰 기능 스키마
 │   │   │
 │   │   └── 📂 services/            # 비즈니스 로직
 │   │       ├── __init__.py
 │   │       ├── 📄 auth_service.py  # ⭐ 인증 서비스 로직
+│   │       ├── 📄 attendance_service.py  # ⭐ 출결 서비스 로직
 │   │       └── 📂 text_review/     # 기존 리뷰 기능
 │   │           ├── __init__.py
 │   │           └── review_generator.py
@@ -46,10 +52,8 @@ project3/
 │
 └── 📂 frontend/                    # Frontend (React + Vite)
     │
-    ├── 📄 package.json             # Node.js 의존성 및 스크립트
+    ├── 📄 package.json             # Node.js 의존성 및 스크립트 (간소화됨)
     ├── 📄 vite.config.js           # ⭐ Vite 설정 (프록시 포함)
-    ├── 📄 tailwind.config.js       # Tailwind CSS 설정
-    ├── 📄 postcss.config.js        # PostCSS 설정
     ├── 📄 index.html               # HTML 템플릿
     ├── 📄 .gitignore               # Git 제외 파일
     │
@@ -57,12 +61,13 @@ project3/
         │
         ├── 📄 main.jsx             # ⭐ React 엔트리포인트
         ├── 📄 App.jsx              # ⭐ 라우팅 설정
-        ├── 📄 index.css            # 전역 스타일 (Tailwind)
+        ├── 📄 index.css            # ⭐ 전역 CSS 스타일 (일반 CSS)
         │
         ├── 📂 pages/               # 페이지 컴포넌트
         │   ├── 📄 LoginPage.jsx    # ⭐ 로그인 페이지
         │   ├── 📄 SignupPage.jsx   # ⭐ 회원가입 페이지
-        │   └── 📄 HomePage.jsx     # ⭐ 메인 대시보드
+        │   ├── 📄 HomePage.jsx     # ⭐ 메인 대시보드
+        │   └── 📄 AttendanceDashboard.jsx  # ⭐ 출결 대시보드
         │
         ├── 📂 services/            # API 통신
         │   └── 📄 api.js           # ⭐ Axios 설정 및 API 함수
@@ -80,11 +85,17 @@ project3/
 |------|------|--------|
 | `main.py` | FastAPI 앱 시작점, 라우터 등록 | ⭐⭐⭐ |
 | `app/models/user.py` | User 테이블 정의 (DB 스키마) | ⭐⭐⭐ |
+| `app/models/student.py` | Student 테이블 정의 | ⭐⭐⭐ |
+| `app/models/attendance.py` | Attendance 테이블 정의 | ⭐⭐⭐ |
+| `app/models/login_log.py` | LoginLog 테이블 정의 | ⭐⭐ |
 | `app/schemas/user.py` | API 요청/응답 형식 정의 | ⭐⭐⭐ |
+| `app/schemas/attendance.py` | 출결 API 요청/응답 형식 정의 | ⭐⭐⭐ |
 | `app/core/security.py` | JWT 토큰, 비밀번호 암호화 | ⭐⭐⭐ |
 | `app/core/database.py` | MySQL 연결 설정 | ⭐⭐⭐ |
 | `app/services/auth_service.py` | 회원가입/로그인 비즈니스 로직 | ⭐⭐⭐ |
+| `app/services/attendance_service.py` | 출결 관리 비즈니스 로직 | ⭐⭐⭐ |
 | `app/api/auth.py` | 회원가입/로그인 API 엔드포인트 | ⭐⭐⭐ |
+| `app/api/attendance.py` | 출결 관리 API 엔드포인트 | ⭐⭐⭐ |
 
 ### Frontend
 
@@ -95,7 +106,37 @@ project3/
 | `src/pages/LoginPage.jsx` | 로그인 UI | ⭐⭐⭐ |
 | `src/pages/SignupPage.jsx` | 회원가입 UI | ⭐⭐⭐ |
 | `src/pages/HomePage.jsx` | 메인 대시보드 UI | ⭐⭐ |
+| `src/pages/AttendanceDashboard.jsx` | 출결 대시보드 UI | ⭐⭐⭐ |
 | `vite.config.js` | 개발 서버 및 프록시 설정 | ⭐⭐ |
+
+### CSS 클래스 가이드
+
+`src/index.css`에 정의된 주요 클래스:
+
+| 카테고리 | 클래스 | 설명 |
+|----------|--------|------|
+| 레이아웃 | `page-wrapper`, `container` | 페이지 전체 래퍼, 컨테이너 |
+| 카드 | `card`, `card-lg`, `card-md` | 카드 컴포넌트 |
+| 버튼 | `btn`, `btn-primary`, `btn-secondary` | 버튼 스타일 |
+| 입력 | `input`, `select` | 폼 입력 필드 |
+| 폼 | `form-group`, `form-label` | 폼 레이아웃 |
+| 알림 | `alert-error`, `alert-success` | 메시지 박스 |
+| 테이블 | `table`, `table-wrapper` | 테이블 스타일 |
+| 텍스트 | `text-gray`, `text-primary`, `font-bold` | 텍스트 유틸리티 |
+
+**사용 예시:**
+```jsx
+<div className="page-wrapper">
+  <div className="card-lg">
+    <h2 className="text-2xl font-bold">로그인</h2>
+    <div className="form-group">
+      <label className="form-label">아이디</label>
+      <input className="input" type="text" />
+    </div>
+    <button className="btn btn-primary">로그인</button>
+  </div>
+</div>
+```
 
 ## 🔄 데이터 흐름
 
@@ -162,29 +203,35 @@ localStorage에 저장 (api.js)
    - 에러 처리 포함 필수
 
 3. **스타일링**
-   - Tailwind CSS 클래스 사용
-   - `tailwind.config.js`에서 커스텀 색상 설정
+   - `index.css`에 정의된 일반 CSS 클래스 사용
+   - 새로운 스타일이 필요하면 `index.css`에 추가
 
 ## 🎯 코드 읽기 순서 (비전공자용)
 
 ### 1단계: 데이터 구조 이해
-1. `backend/app/models/user.py` - DB 테이블 구조
-2. `backend/app/schemas/user.py` - API 입출력 형식
+1. `backend/app/models/user.py` - User 테이블 구조
+2. `backend/app/models/student.py` - Student 테이블 구조
+3. `backend/app/models/attendance.py` - Attendance 테이블 구조
+4. `backend/app/schemas/user.py` - 인증 API 입출력 형식
+5. `backend/app/schemas/attendance.py` - 출결 API 입출력 형식
 
 ### 2단계: 보안 로직 이해
-3. `backend/app/core/security.py` - 암호화 및 토큰
+6. `backend/app/core/security.py` - 암호화 및 토큰
 
 ### 3단계: 비즈니스 로직 이해
-4. `backend/app/services/auth_service.py` - 회원가입/로그인 로직
+7. `backend/app/services/auth_service.py` - 회원가입/로그인 로직
+8. `backend/app/services/attendance_service.py` - 출결 관리 로직
 
 ### 4단계: API 엔드포인트 이해
-5. `backend/app/api/auth.py` - API 정의
+9. `backend/app/api/auth.py` - 인증 API 정의
+10. `backend/app/api/attendance.py` - 출결 API 정의
 
 ### 5단계: Frontend 이해
-6. `frontend/src/services/api.js` - API 통신
-7. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
-8. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
-9. `frontend/src/App.jsx` - 라우팅
+11. `frontend/src/services/api.js` - API 통신
+12. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
+13. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
+14. `frontend/src/pages/AttendanceDashboard.jsx` - 출결 대시보드 UI
+15. `frontend/src/App.jsx` - 라우팅
 
 ---
 

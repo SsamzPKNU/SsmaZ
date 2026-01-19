@@ -2,10 +2,12 @@
 > **최종 수정일**: 2026-01-08
 
 ## 1. 기술 스택 (Tech Stack)
-- **Frontend**: React (Vite), Tailwind CSS
+- **Frontend**: React (Vite), 일반 CSS (TypeScript, Tailwind 미사용)
 - **Backend**: FastAPI (Python 3.10+)
 - **Database**: MySQL 5.5 (Engine: InnoDB)
 - **Auth**: Native JWT (OAuth2 Password Flow) 기반 직접 로그인 (ID/PW)
+
+> **참고**: 비전공자 팀원의 작업 편의를 위해 TypeScript와 Tailwind CSS를 제거하고 순수 JavaScript와 일반 CSS를 사용합니다.
 
 ## 2. 데이터베이스 설계 (ERD 요약)
 - 모든 테이블은 **단일 Primary Key (`id`)**와 **AUTO_INCREMENT**를 사용함.
@@ -24,7 +26,7 @@
 ## 3. 인증 및 보안 (Authentication & Security)
 - **JWT (Json Web Token)**: 로그인 시 Access Token 발급 및 **httpOnly Cookie** 저장.
 - **CSRF Protection**: 프론트엔드 API 요청 시 CSRF 토큰 검증 시스템 적용.
-- **Security**: `passlib[bcrypt]`를 이용한 비밀번호 암호화 및 유효성 검증.
+- **Security**: SHA-256 + Bcrypt 2단계 해싱을 통한 비밀번호 암호화 및 유효성 검증.
 - **Audit Log**: `LoginLogService`를 통한 모든 인증 시도 추적.
 - **Direct Login**: 자체 로그인 시스템만 구현 (소셜 로그인 미사용).
 

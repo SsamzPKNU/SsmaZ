@@ -16,7 +16,9 @@
 - **Vite**: 빌드 도구
 - **React Router**: 라우팅
 - **Axios**: HTTP 클라이언트
-- **Tailwind CSS**: 스타일링
+- **일반 CSS**: 스타일링 (TypeScript, Tailwind 없음)
+
+> **참고**: 비전공자 팀원의 작업 편의를 위해 TypeScript와 Tailwind CSS를 제거하고 순수 JavaScript와 일반 CSS를 사용합니다.
 
 ## 🚀 시작하기
 
@@ -108,7 +110,8 @@ project3/
 ├── backend/                    # Backend (FastAPI)
 │   ├── app/
 │   │   ├── api/               # API 엔드포인트
-│   │   │   └── auth.py        # 인증 API (회원가입, 로그인)
+│   │   │   ├── auth.py        # 인증 API (회원가입, 로그인)
+│   │   │   └── attendance.py  # 출결 API
 │   │   ├── core/              # 핵심 설정
 │   │   │   ├── database.py    # 데이터베이스 연결
 │   │   │   └── security.py    # 보안 (JWT, 비밀번호 해싱)
@@ -123,20 +126,62 @@ project3/
 │   └── .env                   # 환경 변수 (gitignore)
 │
 └── frontend/                   # Frontend (React)
-    ├── src/
-    │   ├── pages/             # 페이지 컴포넌트
-    │   │   ├── LoginPage.jsx  # 로그인 페이지
-    │   │   ├── SignupPage.jsx # 회원가입 페이지
-    │   │   └── HomePage.jsx   # 메인 페이지
-    │   ├── services/          # API 통신
-    │   │   └── api.js         # Axios 설정 및 API 함수
-    │   ├── App.jsx            # 라우팅 설정
-    │   ├── main.jsx           # React 엔트리포인트
-    │   └── index.css          # 전역 스타일
     ├── index.html             # HTML 템플릿
-    ├── package.json           # Node.js 의존성
+    ├── package.json           # Node.js 의존성 (간소화됨)
     ├── vite.config.js         # Vite 설정
-    └── tailwind.config.js     # Tailwind CSS 설정
+    └── src/
+        ├── main.jsx           # React 엔트리포인트
+        ├── App.jsx            # 라우팅 설정
+        ├── index.css          # 전역 CSS 스타일
+        ├── pages/             # 페이지 컴포넌트
+        │   ├── LoginPage.jsx  # 로그인 페이지
+        │   ├── SignupPage.jsx # 회원가입 페이지
+        │   ├── HomePage.jsx   # 메인 페이지
+        │   └── AttendanceDashboard.jsx  # 출결 대시보드
+        └── services/          # API 통신
+            └── api.js         # Axios 설정 및 API 함수
+```
+
+## 📦 Frontend 의존성
+
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8"
+  }
+}
+```
+
+## 🎨 CSS 클래스 사용법
+
+모든 스타일은 `src/index.css`에 정의되어 있습니다.
+
+### 주요 클래스
+
+| 클래스 | 용도 | 예시 |
+|--------|------|------|
+| `page-wrapper` | 페이지 전체 배경 | `<div className="page-wrapper">` |
+| `card-lg` | 큰 카드 컴포넌트 | `<div className="card-lg">` |
+| `btn btn-primary` | 주요 버튼 | `<button className="btn btn-primary">` |
+| `input` | 입력 필드 | `<input className="input" />` |
+| `form-group` | 폼 그룹 | `<div className="form-group">` |
+| `alert-error` | 에러 메시지 | `<div className="alert alert-error">` |
+| `table` | 테이블 | `<table className="table">` |
+
+### 텍스트 스타일
+
+```jsx
+<p className="text-gray">회색 텍스트</p>
+<p className="text-primary">파란색 텍스트</p>
+<p className="font-bold">굵은 텍스트</p>
+<p className="text-2xl">큰 텍스트</p>
 ```
 
 ## 🔐 데이터베이스 스키마
@@ -214,6 +259,25 @@ Content-Type: application/json
 }
 ```
 
+### 출결 API
+
+#### 1. 오늘 출결 조회
+```http
+GET /attendance/today
+```
+
+#### 2. 출결 체크
+```http
+POST /attendance/check
+Content-Type: application/json
+
+{
+  "student_id": 1,
+  "status": "출석",
+  "action": "CHECK_IN"
+}
+```
+
 ## 🔒 보안 기능
 
 ### 비밀번호 암호화
@@ -248,11 +312,17 @@ Content-Type: application/json
 ### 3. 메인 페이지 (`/`)
 - 사용자 정보 대시보드
 - 로그아웃 기능
+- 출결 관리 바로가기
 - 보호된 라우트 (로그인 필요)
+
+### 4. 출결 대시보드 (`/attendance`)
+- 학생 목록 및 출결 상태
+- 출석/지각/조퇴/하원 버튼
+- 실시간 상태 업데이트
 
 ### 라우트 보호
 - **PublicRoute**: 로그인하지 않은 사용자만 접근 (로그인, 회원가입)
-- **ProtectedRoute**: 로그인한 사용자만 접근 (메인 페이지)
+- **ProtectedRoute**: 로그인한 사용자만 접근 (메인 페이지, 출결)
 
 ## 🧪 테스트 방법
 
@@ -321,7 +391,7 @@ npm install
 ### Frontend
 - [React 공식 문서](https://react.dev/)
 - [Vite 가이드](https://vitejs.dev/guide/)
-- [Tailwind CSS](https://tailwindcss.com/docs)
+- [MDN CSS 가이드](https://developer.mozilla.org/ko/docs/Web/CSS)
 
 ## 👥 팀원을 위한 가이드
 
@@ -335,15 +405,28 @@ npm install
 5. `backend/app/api/auth.py` - API 엔드포인트
 
 #### Frontend
-1. `frontend/src/services/api.js` - API 통신 방법
-2. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
-3. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
-4. `frontend/src/App.jsx` - 라우팅 구조
+1. `frontend/src/index.css` - CSS 클래스 확인
+2. `frontend/src/services/api.js` - API 통신 방법
+3. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
+4. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
+5. `frontend/src/App.jsx` - 라우팅 구조
 
 ### 주석 설명
 - 모든 파일에 상세한 한글 주석 포함
+- 각 파일 상단에 파일 설명 주석 제공
 - 함수마다 설명과 사용 예시 제공
 - 복잡한 로직은 단계별로 주석 작성
+
+### 파일 수정 시 참고
+각 JSX 파일 상단의 주석 형식:
+```jsx
+/**
+ * 📄 파일명: [파일명].jsx
+ * 📝 설명: [이 파일이 하는 일]
+ * 🔗 API: [사용하는 API 엔드포인트]
+ * ✏️ 수정 시 주의: [주의사항]
+ */
+```
 
 ## 📄 라이선스
 

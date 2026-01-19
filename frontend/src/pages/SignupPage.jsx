@@ -1,6 +1,8 @@
 /**
- * 회원가입 페이지
- * 새로운 사용자 등록을 처리합니다
+ * 📄 파일명: SignupPage.jsx
+ * 📝 설명: 회원가입 페이지 - 새로운 사용자 등록을 처리합니다
+ * 🔗 API: POST /auth/signup
+ * ✏️ 수정 시 주의: formData의 필드명은 백엔드 API와 일치해야 합니다
  */
 
 import { useState } from 'react';
@@ -96,37 +98,37 @@ function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
+        <div className="page-wrapper">
             <div className="max-w-2xl w-full">
                 {/* 로고 및 제목 */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-primary-700 mb-2">SsmaZ</h1>
-                    <p className="text-gray-600">학원 관리 서비스</p>
+                <div className="text-center mb-3">
+                    <h1 className="logo">SsmaZ</h1>
+                    <p className="text-gray">학원 관리 서비스</p>
                 </div>
 
                 {/* 회원가입 폼 */}
-                <div className="bg-white rounded-2xl shadow-xl p-8">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">회원가입</h2>
+                <div className="card-lg">
+                    <h2 className="text-2xl font-bold text-gray-dark mb-3">회원가입</h2>
 
                     {/* 성공 메시지 */}
                     {success && (
-                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                        <div className="alert alert-success">
                             회원가입이 완료되었습니다! 로그인 페이지로 이동합니다...
                         </div>
                     )}
 
                     {/* 에러 메시지 */}
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                        <div className="alert alert-error">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit}>
                         {/* 아이디 입력 */}
-                        <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                                아이디 <span className="text-red-500">*</span>
+                        <div className="form-group">
+                            <label htmlFor="username" className="form-label">
+                                아이디 <span className="text-red">*</span>
                             </label>
                             <input
                                 type="text"
@@ -137,17 +139,17 @@ function SignupPage() {
                                 required
                                 minLength={3}
                                 maxLength={50}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                className="input"
                                 placeholder="영문, 숫자, 언더스코어 사용 가능"
                             />
-                            <p className="text-xs text-gray-500 mt-1">3-50자, 영문/숫자/언더스코어만 사용</p>
+                            <p className="form-hint">3-50자, 영문/숫자/언더스코어만 사용</p>
                         </div>
 
                         {/* 비밀번호 입력 */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                    비밀번호 <span className="text-red-500">*</span>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label htmlFor="password" className="form-label">
+                                    비밀번호 <span className="text-red">*</span>
                                 </label>
                                 <input
                                     type="password"
@@ -157,14 +159,14 @@ function SignupPage() {
                                     onChange={handleChange}
                                     required
                                     minLength={6}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="input"
                                     placeholder="최소 6자 이상"
                                 />
                             </div>
 
-                            <div>
-                                <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-700 mb-2">
-                                    비밀번호 확인 <span className="text-red-500">*</span>
+                            <div className="form-group">
+                                <label htmlFor="passwordConfirm" className="form-label">
+                                    비밀번호 확인 <span className="text-red">*</span>
                                 </label>
                                 <input
                                     type="password"
@@ -173,17 +175,17 @@ function SignupPage() {
                                     value={formData.passwordConfirm}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="input"
                                     placeholder="비밀번호 재입력"
                                 />
                             </div>
                         </div>
 
                         {/* 학원 ID 및 역할 */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="academy_id" className="block text-sm font-medium text-gray-700 mb-2">
-                                    학원 ID <span className="text-red-500">*</span>
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label htmlFor="academy_id" className="form-label">
+                                    학원 ID <span className="text-red">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -193,14 +195,14 @@ function SignupPage() {
                                     onChange={handleChange}
                                     required
                                     min={1}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="input"
                                     placeholder="소속 학원 ID"
                                 />
                             </div>
 
-                            <div>
-                                <label htmlFor="user_role" className="block text-sm font-medium text-gray-700 mb-2">
-                                    역할 <span className="text-red-500">*</span>
+                            <div className="form-group">
+                                <label htmlFor="user_role" className="form-label">
+                                    역할 <span className="text-red">*</span>
                                 </label>
                                 <select
                                     id="user_role"
@@ -208,7 +210,7 @@ function SignupPage() {
                                     value={formData.user_role}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="select"
                                 >
                                     <option value="TEACHER">선생님</option>
                                     <option value="STUDENT">학생</option>
@@ -218,9 +220,9 @@ function SignupPage() {
                         </div>
 
                         {/* 이름 및 전화번호 (선택) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label htmlFor="name" className="form-label">
                                     이름
                                 </label>
                                 <input
@@ -230,13 +232,13 @@ function SignupPage() {
                                     value={formData.name}
                                     onChange={handleChange}
                                     maxLength={50}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="input"
                                     placeholder="실명 (선택)"
                                 />
                             </div>
 
-                            <div>
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                            <div className="form-group">
+                                <label htmlFor="phone" className="form-label">
                                     전화번호
                                 </label>
                                 <input
@@ -246,7 +248,7 @@ function SignupPage() {
                                     value={formData.phone}
                                     onChange={handleChange}
                                     maxLength={20}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                                    className="input"
                                     placeholder="010-1234-5678 (선택)"
                                 />
                             </div>
@@ -256,17 +258,17 @@ function SignupPage() {
                         <button
                             type="submit"
                             disabled={loading || success}
-                            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                            className="btn btn-primary btn-lg mt-3"
                         >
                             {loading ? '가입 중...' : success ? '가입 완료!' : '회원가입'}
                         </button>
                     </form>
 
                     {/* 로그인 링크 */}
-                    <div className="mt-6 text-center">
-                        <p className="text-gray-600">
+                    <div className="mt-3 text-center">
+                        <p className="text-gray">
                             이미 계정이 있으신가요?{' '}
-                            <Link to="/login" className="text-primary-600 hover:text-primary-700 font-semibold">
+                            <Link to="/login" className="link">
                                 로그인
                             </Link>
                         </p>
@@ -274,7 +276,7 @@ function SignupPage() {
                 </div>
 
                 {/* 푸터 */}
-                <p className="text-center text-gray-500 text-sm mt-8">
+                <p className="text-center text-gray text-sm mt-3">
                     © 2026 SsmaZ. All rights reserved.
                 </p>
             </div>
