@@ -88,7 +88,18 @@ function SignupPage() {
 
             // 에러 메시지 설정
             if (err.response) {
-                setError(err.response.data.detail || '회원가입에 실패했습니다');
+                const detail = err.response.data.detail;
+                // FastAPI 422 에러는 detail이 배열 형태로 반환됨
+                if (Array.isArray(detail)) {
+                    // 첫 번째 에러 메시지 추출 (예: "password: 최소 8자 이상")
+                    const firstError = detail[0];
+                    const field = firstError.loc?.[1] || '필드';
+                    setError(`${field}: ${firstError.msg}`);
+                } else if (typeof detail === 'string') {
+                    setError(detail);
+                } else {
+                    setError('회원가입에 실패했습니다');
+                }
             } else {
                 setError('서버와 연결할 수 없습니다');
             }
