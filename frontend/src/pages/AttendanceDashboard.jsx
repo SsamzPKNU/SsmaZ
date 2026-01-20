@@ -100,8 +100,17 @@ const AttendanceDashboard = () => {
     if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
     return (
+<<<<<<< Updated upstream
         <div className="max-w-6xl mx-auto p-6">
             <h1 className="text-3xl font-bold mb-8 text-gray-800">출결 관리 대시보드</h1>
+=======
+        <div className="space-y-6 animate-fade-in">
+            {/* 상단 컨트롤 바 가 있다면 여기에 추가 (예: 날짜 선택) */}
+            <div className="flex justify-between items-center mb-2">
+                <p className="text-gray-500">오늘의 출결 현황을 실시간으로 확인하고 기록하세요.</p>
+                <button onClick={fetchAttendance} className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">새로고침 🔄</button>
+            </div>
+>>>>>>> Stashed changes
 
             <div className="bg-white shadow-xl rounded-xl overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">

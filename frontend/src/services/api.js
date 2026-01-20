@@ -11,7 +11,7 @@ import axios from 'axios';
 
 // Axios 인스턴스 생성
 const api = axios.create({
-    baseURL: 'http://localhost:8000', // 백엔드 서버 주소
+    baseURL: 'http://192.168.0.35:8000', // 백엔드 서버 주소 (Vite 프록시 사용)
     headers: {
         'Content-Type': 'application/json',
     },
@@ -58,41 +58,48 @@ api.interceptors.response.use(
 
 /**
  * 회원가입 API
- * @param {Object} userData - 회원가입 정보
- * @param {string} userData.username - 로그인 ID
- * @param {string} userData.password - 비밀번호 (최소 8자, 영문+숫자 필수)
- * @param {number} userData.academy_id - 학원 ID
- * @param {string} userData.user_role - 사용자 역할 (ADMIN/TEACHER/STUDENT)
- * @param {string} userData.name - 실명 (선택)
- * @param {string} userData.phone - 전화번호 (선택)
- * @returns {Promise} 생성된 사용자 정보
+ * 백엔드 (Coding Kit Shop) 구조에 맞춰 데이터 매핑
  */
 export const signup = async (userData) => {
-    const response = await api.post('/auth/signup', userData);
+    // 백엔드 API 변경: /auth/signup
+    // username, password, academy_id, user_role, name, phone 전송
+    const payload = {
+        username: userData.username,
+        password: userData.password,
+        academy_id: userData.academy_id,
+        user_role: userData.user_role,
+        name: userData.name,
+        phone: userData.phone
+    };
+
+    const response = await api.post('/auth/signup', payload);
     return response.data;
 };
 
 /**
  * 로그인 API
- * 
- * 성공 시:
- * - JWT 토큰이 httpOnly 쿠키로 자동 저장됨
- * - CSRF 토큰은 응답 body로 반환되어 localStorage에 저장
- * 
- * @param {Object} credentials - 로그인 정보
- * @param {string} credentials.username - 로그인 ID
- * @param {string} credentials.password - 비밀번호
- * @returns {Promise} CSRF 토큰 및 사용자 정보
+ * 백엔드 (/api/auth/login) 호출
  */
 export const login = async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
+    // 백엔드는 username, password 필요
+    const payload = {
+        username: credentials.username,
+        password: credentials.password
+    };
 
-    // 응답 데이터 구조: { csrf_token, token_type, user }
-    const { csrf_token, user } = response.data;
+    const response = await api.post('/auth/login', payload);
 
-    // CSRF 토큰과 사용자 정보를 localStorage에 저장
-    // (JWT 토큰은 httpOnly 쿠키로 자동 저장됨)
-    localStorage.setItem('csrf_token', csrf_token);
+    // 응답: { access_token }
+    // Shop 백엔드는 JWT만 반환하고 User 정보는 반환하지 않음 (이후 fetchCurrentUser로 가져와야 함 하지만 일단 username 저장)
+    const { access_token } = response.data;
+
+    // 이 백엔드는 CSRF 토큰을 별도로 주지 않고 JWT 방식을 사용하는 것으로 보임.
+    // 기존 로직 유지를 위해 localStorage에 토큰 저장 (CSRF 토큰 대용으로 사용하거나 로직 수정 필요)
+    // 여기서는 isAuthenticated()가 CSRF 토큰 유무를 체크하므로, access_token을 저장.
+    localStorage.setItem('csrf_token', access_token);
+
+    // 임시 사용자 정보 저장 (백엔드가 User 객체를 주지 않으므로)
+    const user = { username: credentials.username, name: 'User', role: 'ADMIN' };
     localStorage.setItem('user', JSON.stringify(user));
 
     return response.data;

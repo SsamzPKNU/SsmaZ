@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 /**
  * 전역 스타일 및 Tailwind CSS 설정
  */
@@ -38,3 +39,18 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+=======
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ssamz-bg text-ssamz-text font-sans;
+}
+>>>>>>> Stashed changes
