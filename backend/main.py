@@ -11,6 +11,7 @@ from app.api.dashboard import router as dashboard_router
 from app.api.teacher import router as teacher_router
 from app.api.student import router as student_router
 from app.api.payment import router as payment_router
+from app.api.toss import router as toss_router
 from app.api.message import router as message_router
 from app.api.class_api import router as class_router
 
@@ -72,6 +73,7 @@ app.include_router(dashboard_router)  # 대시보드 라우터
 app.include_router(teacher_router)  # 선생님 관리 라우터
 app.include_router(student_router)  # 학생 관리 라우터
 app.include_router(payment_router)  # 수납/결제 관리 라우터
+app.include_router(toss_router)  # 토스페이먼츠 연동 라우터
 app.include_router(message_router)  # 메시지 센터 라우터
 app.include_router(class_router)  # 클래스 관리 라우터
 
