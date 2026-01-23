@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\001\\\\SsmaZ\\\\backend\" log --oneline -10)"
+    ]
+  }
+}

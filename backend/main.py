@@ -33,12 +33,12 @@ app = FastAPI(
 # Rate Limiter 등록
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 # CORS 설정 (라우터보다 먼저 등록)
 # httpOnly 쿠키 전송을 위해 credentials=True 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # 쿠키 사용 시 구체적인 origin 필요
+    allow_origins=ALLOWED_ORIGINS,  # 쿠키 사용 시 구체적인 origin 필요
     allow_credentials=True,  # 쿠키 전송 허용
     allow_methods=["*"],
     allow_headers=["*"],
