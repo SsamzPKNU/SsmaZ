@@ -146,3 +146,7 @@ CLAUDE.md
 /frontend
 .DS_Store
 /backend/__pycache__
+/backend/__pycache__
+/backend/app/schemas/__pycache__
+/backend/app/schemas/__pycache__
+/backend/app/models/__pycache__

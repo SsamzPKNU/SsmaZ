@@ -2,29 +2,29 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
 from app.services.text_review.review_generator import ReviewGenerator
-from app.api.auth import router as auth_router  # 인증 라우터 추가
-from app.api.attendance import router as attendance_router # 출결 라우터 추가
-from app.api.kiosk import router as kiosk_router  # 키오스크 라우터 추가
-<<<<<<< Updated upstream
-from app.api.payment import router as payment_router  # 결제 라우터 추가
-from app.core.database import engine, Base  # 데이터베이스 설정
-from app.models.login_log import LoginLog  # 로그인 로그 모델 (테이블 자동 생성용)
-from app.models.payment import Payment  # 결제 모델 (테이블 자동 생성용)
-=======
-from app.api.dashboard import router as dashboard_router  # 대시보드 라우터 추가
-from app.api.teacher import router as teacher_router  # 선생님 관리 라우터 추가
-from app.api.student import router as student_router  # 학생 관리 라우터 추가
-from app.api.payment import router as payment_router  # 수납/결제 관리 라우터 추가
-from app.api.message import router as message_router  # 메시지 센터 라우터 추가
-from app.api.class_api import router as class_router  # 클래스 관리 라우터 추가
-from app.core.database import engine, Base  # 데이터베이스 설정
-from app.models.login_log import LoginLog  # 로그인 로그 모델 (테이블 자동 생성용)
-from app.models.teacher import Teacher  # 선생님 모델 (테이블 자동 생성용)
-from app.models.student import Student  # 학생 모델 (테이블 자동 생성용, 필드 업데이트)
-from app.models.payment import Payment  # 수납/결제 모델 (테이블 자동 생성용)
-from app.models.message import Message  # 메시지 모델 (테이블 자동 생성용)
-from app.models.class_model import Class  # 클래스 모델 (테이블 자동 생성용)
->>>>>>> Stashed changes
+
+# API 라우터 임포트
+from app.api.auth import router as auth_router
+from app.api.attendance import router as attendance_router
+from app.api.kiosk import router as kiosk_router
+from app.api.dashboard import router as dashboard_router
+from app.api.teacher import router as teacher_router
+from app.api.student import router as student_router
+from app.api.payment import router as payment_router
+from app.api.message import router as message_router
+from app.api.class_api import router as class_router
+
+# 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
+from app.core.database import engine, Base
+from app.models.user import User
+from app.models.login_log import LoginLog
+from app.models.teacher import Teacher
+from app.models.student import Student
+from app.models.payment import Payment
+from app.models.message import Message
+from app.models.class_model import Class
+from app.models.attendance import Attendance
+
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -44,13 +44,14 @@ Base.metadata.create_all(bind=engine)
 # FastAPI 앱 생성
 app = FastAPI(
     title="학원 관리 서비스 SsmaZ API",
-    description="학원 수업 리뷰 생성 및 사용자 인증 기능을 제공합니다",
+    description="학원 수업 리뷰 생성 및 관리자 관리 기능을 제공합니다",
     version="1.0.0"
 )
 
 # Rate Limiter 등록
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 # CORS 설정 (라우터보다 먼저 등록)
 # httpOnly 쿠키 전송을 위해 credentials=True 설정
@@ -63,20 +64,16 @@ app.add_middleware(
     expose_headers=["Set-Cookie"],  # 쿠키 헤더 노출
 )
 
-# 인증 라우터 등록
+# 라우터 등록
 app.include_router(auth_router)
 app.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 app.include_router(kiosk_router)  # 키오스크 라우터 (prefix는 라우터 내부에 정의됨)
-<<<<<<< Updated upstream
-app.include_router(payment_router)  # 결제 라우터 (prefix는 라우터 내부에 정의됨)
-=======
 app.include_router(dashboard_router)  # 대시보드 라우터
 app.include_router(teacher_router)  # 선생님 관리 라우터
 app.include_router(student_router)  # 학생 관리 라우터
 app.include_router(payment_router)  # 수납/결제 관리 라우터
 app.include_router(message_router)  # 메시지 센터 라우터
 app.include_router(class_router)  # 클래스 관리 라우터
->>>>>>> Stashed changes
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
