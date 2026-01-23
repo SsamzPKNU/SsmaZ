@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
+from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, SimpleLoginResponse, SimpleUserResponse, CurrentUserResponse
 from app.services.auth_service import AuthService
 from app.services.login_log_service import LoginLogService
 from app.core.security import verify_token, get_token_payload, verify_csrf_token
@@ -273,7 +273,7 @@ async def login(
         raise e
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=CurrentUserResponse)
 async def get_me(
     current_user: User = Depends(get_current_user)
 ):
@@ -281,6 +281,7 @@ async def get_me(
     현재 로그인한 사용자 정보 조회 API
     
     JWT 토큰을 통해 현재 로그인한 사용자의 정보를 반환합니다.
+    명세서 형식: id, username, name, avatar_seed, user_role
     
     Headers (쿠키 방식):
         Cookie: access_token={JWT}
@@ -291,12 +292,146 @@ async def get_me(
     
     Returns:
         현재 사용자 정보
+        - id: 사용자 고유 ID
+        - username: 로그인 ID
+        - name: 실명
+        - avatar_seed: 아바타 시드 (username과 동일)
+        - user_role: 사용자 역할
     
     Raises:
         401: 토큰이 없거나 유효하지 않은 경우
         403: CSRF 토큰이 없거나 유효하지 않은 경우 (쿠키 방식)
+    
+    사용 예시:
+        GET /auth/me
+        Headers: 
+          - Cookie: access_token={JWT}
+          - X-CSRF-Token: {csrf_token}
+        
+        응답:
+        {
+            "id": 1,
+            "username": "admin",
+            "name": "원장님",
+            "avatar_seed": "admin",
+            "user_role": "ADMIN"
+        }
     """
-    return current_user
+    return CurrentUserResponse(
+        id=current_user.user_id,
+        username=current_user.username,
+        name=current_user.name,
+        avatar_seed=current_user.username,  # avatar_seed는 username과 동일
+        user_role=current_user.user_role.value  # Enum을 문자열로 변환
+    )
+
+
+@router.post("/login-mobile", response_model=SimpleLoginResponse)
+@limiter.limit("5/minute")  # 분당 5회 제한 (Brute Force 공격 방지)
+async def login_mobile(
+    request: Request,  # Rate Limiter에 필요
+    login_data: UserLogin,
+    db: Session = Depends(get_db)
+):
+    """
+    간단한 로그인 API (모바일/앱용)
+    
+    명세서 형식으로 응답합니다:
+    - access_token을 응답 body에 포함
+    - httpOnly 쿠키 사용 안 함
+    - CSRF 토큰 사용 안 함
+    
+    ⚠️ 주의: 웹 브라우저에서는 /auth/login 사용을 권장합니다.
+    이 엔드포인트는 모바일 앱이나 토큰을 직접 관리하는 클라이언트용입니다.
+    
+    Args:
+        login_data: 로그인 정보
+            - username: 로그인 ID
+            - password: 비밀번호
+        db: 데이터베이스 세션 (자동 주입)
+    
+    Returns:
+        사용자 정보 및 JWT 토큰
+        - user: 사용자 정보 (id, username, name, user_role, academy_id)
+        - access_token: JWT 액세스 토큰
+    
+    Raises:
+        401: username 또는 password가 올바르지 않은 경우
+        429: 분당 5회 초과 시
+    
+    사용 예시:
+        POST /auth/login-mobile
+        {
+            "username": "admin",
+            "password": "password123"
+        }
+        
+        응답:
+        {
+            "user": {
+                "id": 1,
+                "username": "admin",
+                "name": "원장님",
+                "user_role": "ADMIN",
+                "academy_id": 1
+            },
+            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        }
+    """
+    # 클라이언트 정보 추출
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+    
+    try:
+        # 1. 사용자 인증
+        user = AuthService.authenticate_user(db, login_data)
+        
+        # 2. 로그인 성공 로그 기록
+        LoginLogService.log_success(
+            db=db,
+            user=user,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
+        # 3. JWT 토큰 생성 (CSRF 없이 일반 토큰만)
+        access_token = AuthService.create_user_token(user)
+        
+        # 4. 명세서 형식으로 응답
+        return SimpleLoginResponse(
+            user=SimpleUserResponse(
+                id=user.user_id,
+                username=user.username,
+                name=user.name,
+                user_role=user.user_role.value,  # Enum을 문자열로 변환
+                academy_id=user.academy_id
+            ),
+            access_token=access_token
+        )
+        
+    except HTTPException as e:
+        # 로그인 실패 로그 기록
+        failure_reason = "USER_NOT_FOUND_OR_WRONG_PASSWORD"
+        user_id = None
+        
+        # 사용자 존재 여부 확인 (실패 원인 구분)
+        existing_user = AuthService.get_user_by_username(db, login_data.username)
+        if not existing_user:
+            failure_reason = "USER_NOT_FOUND"
+        else:
+            failure_reason = "WRONG_PASSWORD"
+            user_id = existing_user.user_id
+        
+        LoginLogService.log_failure(
+            db=db,
+            user_id=user_id,
+            failure_reason=failure_reason,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
+        # 원래 HTTPException 다시 발생
+        raise e
 
 
 @router.post("/logout")

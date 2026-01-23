@@ -134,3 +134,74 @@ class Token(BaseModel):
                 }
             }
         }
+
+
+class SimpleUserResponse(BaseModel):
+    """
+    간단한 사용자 정보 응답 스키마 (모바일/간단한 API용)
+    명세서 형식에 맞춘 필드명 사용 (id, user_role, academy_id)
+    """
+    id: int = Field(..., description="사용자 고유 ID")
+    username: str = Field(..., description="로그인 ID")
+    name: Optional[str] = Field(None, description="실명")
+    user_role: str = Field(..., description="사용자 역할")
+    academy_id: int = Field(..., description="소속 학원 ID")
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "username": "admin",
+                "name": "원장님",
+                "user_role": "ADMIN",
+                "academy_id": 1
+            }
+        }
+
+
+class SimpleLoginResponse(BaseModel):
+    """
+    간단한 로그인 응답 스키마 (모바일/간단한 API용)
+    명세서 형식: { user, access_token }
+    """
+    user: SimpleUserResponse = Field(..., description="사용자 정보")
+    access_token: str = Field(..., description="JWT 액세스 토큰")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user": {
+                    "id": 1,
+                    "username": "admin",
+                    "name": "원장님",
+                    "user_role": "ADMIN",
+                    "academy_id": 1
+                },
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            }
+        }
+
+
+class CurrentUserResponse(BaseModel):
+    """
+    현재 사용자 정보 응답 스키마 (/auth/me용)
+    명세서 형식: id, username, name, avatar_seed, user_role
+    """
+    id: int = Field(..., description="사용자 고유 ID")
+    username: str = Field(..., description="로그인 ID")
+    name: Optional[str] = Field(None, description="실명")
+    avatar_seed: str = Field(..., description="아바타 시드 (username 기반)")
+    user_role: str = Field(..., description="사용자 역할")
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "username": "admin",
+                "name": "원장님",
+                "avatar_seed": "admin",
+                "user_role": "ADMIN"
+            }
+        }
