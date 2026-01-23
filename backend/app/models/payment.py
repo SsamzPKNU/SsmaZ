@@ -1,5 +1,4 @@
 """
-결제 관련 데이터베이스 모델
 Payment 모델 정의
 수납/결제 정보를 저장하는 테이블
 """
@@ -11,7 +10,6 @@ from app.core.database import Base
 import enum
 
 
-    - CASH: 현금 결제
 class PaymentStatus(str, enum.Enum):
     """결제 상태"""
     UNPAID = "unpaid"      # 미납
@@ -28,12 +26,6 @@ class PaymentMethod(str, enum.Enum):
 
 class Payment(Base):
     """
-    - student_id: 학생 ID (Students 테이블 FK)
-    토스페이먼츠 연동 추가 필드 (향후 마이그레이션 필요):
-    - payment_key: 토스 결제 키 (토스 API 조회/취소 시 사용)
-    __tablename__ = "Payments"
-    
-    # 기본 키
     수납/결제 정보 테이블
     
     Student와 N:1 관계
