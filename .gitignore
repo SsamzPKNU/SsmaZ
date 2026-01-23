@@ -158,3 +158,12 @@ backend/app/schemas/__pycache__/user.cpython-311.pyc
 backend/app/schemas/__pycache__/student.cpython-311.pyc
 backend/app/models/payment.py
 backend/app/models/__pycache__/student.cpython-311.pyc
+/backend/__pycache__
+/backend/app/api/__pycache__
+/backend/app/api/__pycache__
+/backend/app/models/__pycache__
+/backend/app/models/__pycache__
+/backend/app/schemas/__pycache__
+/backend/app/schemas/__pycache__
+/backend/app/schemas/__pycache__
+/backend/app/services/__pycache__

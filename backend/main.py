@@ -14,6 +14,7 @@ from app.api.payment import router as payment_router
 from app.api.toss import router as toss_router
 from app.api.message import router as message_router
 from app.api.class_api import router as class_router
+from app.api.teacher_app import router as teacher_app_router
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -76,6 +77,7 @@ app.include_router(payment_router)  # 수납/결제 관리 라우터
 app.include_router(toss_router)  # 토스페이먼츠 연동 라우터
 app.include_router(message_router)  # 메시지 센터 라우터
 app.include_router(class_router)  # 클래스 관리 라우터
+app.include_router(teacher_app_router)  # 선생님용 앱 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
