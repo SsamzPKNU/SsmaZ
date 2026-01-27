@@ -1,5 +1,5 @@
 # [TRD] 프로젝트3 - 시스템 설계서
-> **최종 수정일**: 2026-01-08
+> **최종 수정일**: 2026-01-27
 
 ## 1. 기술 스택 (Tech Stack)
 - **Frontend**: React (Vite), 일반 CSS (TypeScript, Tailwind 미사용)
@@ -18,8 +18,11 @@
 - `Academies`: 학원 기본 정보.
 - `Users`: 로그인 정보 (username, password_hash, name, phone, role [ADMIN, TEACHER, STUDENT] 등).
 - `LoginLogs`: 로그인 이력 기록 (login_time, ip_address, status [SUCCESS, FAIL], user_id).
+- `Teachers`: 선생님 정보 (user_id FK, name, subject, employment_type, hourly_rate 등).
 - `Students`: 학생 정보 및 `academy_id` 외래키 참조.
-- `Attendance`: 출결 기록 (status: [등교, 하교, 지각, 결석, 조퇴] ENUM 사용).
+- `StudentContacts`: 학생 연락처 (student_id FK, phone, label, priority) - 다중 연락처 지원.
+- `Attendance`: 학생 출결 기록 (status: [등교, 하교, 지각, 결석, 조퇴] ENUM 사용).
+- `TeacherAttendances`: 선생님 출퇴근 기록 (teacher_id FK, check_in_time, check_out_time, worked_minutes, is_approved).
 - `Payments`: 수납 관리 정보.
 - `DailyLogs`: 학습 일지 및 문자 전송 상태.
 
@@ -31,10 +34,18 @@
 - **Direct Login**: 자체 로그인 시스템만 구현 (소셜 로그인 미사용).
 
 ## 4. 핵심 모바일/웹 기능 구현
-- **출결 자동화 시스템**:
+- **학생 출결 자동화 시스템**:
   - `AttendanceService`를 통한 등하교 관리.
   - 당일 중복 체크 방지 및 상태 히스토리 관리.
-- **문자 리뷰 및 알림**: 
+- **선생님 출퇴근 관리 시스템**:
+  - `TeacherAttendanceService`를 통한 출퇴근 체크.
+  - 당일 중복 출근 방지 및 퇴근 시 근무시간(분) 자동 계산.
+  - 원장(ADMIN) 승인 기능 (`is_approved`, `approved_by`).
+  - 비정규직(PART_TIME) 시급 기반 예상 급여 계산.
+- **학생 연락처 다중 관리**:
+  - `StudentContactService`를 통한 연락처 CRUD.
+  - 우선순위(`priority`) 및 활성화(`is_active`) 상태 관리.
+- **문자 리뷰 및 알림**:
   - `text_review` 모듈 연동.
   - `DailyLogs` 생성 시 혹은 `Attendance` 상태 변경 시 특정 훅(Hook)을 통해 문자 모델 호출.
   - `is_sent` 플래그를 통해 중복 발송 방지.

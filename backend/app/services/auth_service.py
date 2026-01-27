@@ -5,7 +5,8 @@
 
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.models.user import User
+from app.models.user import User, UserRole
+from app.models.teacher import Teacher
 from app.schemas.user import UserCreate, UserLogin
 from app.core.security import hash_password, verify_password, create_access_token, create_access_token_with_csrf
 from typing import Optional, Tuple
@@ -68,7 +69,19 @@ class AuthService:
         db.add(db_user)
         db.commit()
         db.refresh(db_user)  # DB에서 생성된 값들(user_id, created_at 등) 가져오기
-        
+
+        # 5. TEACHER 역할인 경우 Teachers 테이블에도 자동 등록
+        if db_user.user_role == UserRole.TEACHER:
+            db_teacher = Teacher(
+                user_id=db_user.user_id,
+                academy_id=db_user.academy_id,
+                name=db_user.name or db_user.username,
+                phone=db_user.phone,
+                employment_type="FULL_TIME"
+            )
+            db.add(db_teacher)
+            db.commit()
+
         return db_user
     
     @staticmethod

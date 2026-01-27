@@ -97,7 +97,20 @@ class Teacher(Base):
         nullable=False,
         comment="재직 상태 (active, leave, resigned)"
     )
-    
+
+    employment_type = Column(
+        String(20),
+        nullable=True,
+        default="FULL_TIME",
+        comment="고용 형태 (FULL_TIME: 정규직, PART_TIME: 비정규직)"
+    )
+
+    hourly_rate = Column(
+        Integer,
+        nullable=True,
+        comment="시급 (비정규직용, 원 단위)"
+    )
+
     created_at = Column(
         TIMESTAMP,
         server_default=func.now(),
