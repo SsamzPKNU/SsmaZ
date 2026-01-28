@@ -10,11 +10,14 @@ from app.api.auth import get_current_user
 from app.api.deps import get_admin_user
 from app.models.user import User, UserRole
 from app.models.assignment import Assignment, Question
+from app.models.submission import Submission
+from app.models.student import Student
 from app.schemas.assignment import (
     AssignmentCreate, AssignmentUpdate, AssignmentResponse,
     AssignmentStudentResponse, AssignmentListItem, AssignmentListResponse,
     QuestionResponse, QuestionStudentResponse
 )
+from app.schemas.submission import SubmissionWithStudentItem, SubmissionWithStudentListResponse
 
 router = APIRouter()
 
@@ -328,3 +331,80 @@ async def delete_assignment(
     db.commit()
 
     return None
+
+
+@router.get("/{assignment_id}/submissions", response_model=SubmissionWithStudentListResponse)
+async def get_assignment_submissions(
+    assignment_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_teacher_or_admin)
+):
+    """
+    과제 제출 현황 조회 (TEACHER, ADMIN)
+
+    특정 과제에 대한 학생들의 제출 현황을 조회합니다.
+    학생 이름이 포함된 제출 목록을 반환합니다.
+
+    Path Parameters:
+        - assignment_id: 과제 ID
+
+    Query Parameters:
+        - skip: 페이지네이션 오프셋 (기본: 0)
+        - limit: 페이지네이션 제한 (기본: 50)
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        SubmissionWithStudentListResponse: 제출 목록 (학생 정보 포함)
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 권한 없음
+        404: 과제를 찾을 수 없음
+
+    사용 예시:
+        GET /api/assignments/1/submissions
+    """
+    # 과제 확인
+    assignment = db.query(Assignment).filter(
+        Assignment.assignment_id == assignment_id,
+        Assignment.academy_id == current_user.academy_id
+    ).first()
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="과제를 찾을 수 없습니다"
+        )
+
+    # 제출 목록 조회
+    query = db.query(Submission).filter(
+        Submission.assignment_id == assignment_id
+    )
+
+    total = query.count()
+    submissions = query.order_by(Submission.submitted_at.desc()).offset(skip).limit(limit).all()
+
+    items = []
+    for s in submissions:
+        # 학생 정보 조회
+        student = db.query(Student).filter(
+            Student.student_id == s.student_id
+        ).first()
+
+        items.append(SubmissionWithStudentItem(
+            submission_id=s.submission_id,
+            assignment_id=s.assignment_id,
+            student_id=s.student_id,
+            student_name=student.name if student else "Unknown",
+            status=s.status,
+            total_score=s.total_score,
+            max_score=s.max_score,
+            submitted_at=s.submitted_at,
+            graded_at=s.graded_at
+        ))
+
+    return SubmissionWithStudentListResponse(items=items, total=total)

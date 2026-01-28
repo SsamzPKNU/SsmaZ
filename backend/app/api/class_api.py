@@ -7,8 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleListResponse
 from app.services.class_service import ClassService
+from app.services.schedule_service import ScheduleService
 from app.models.user import User
+from app.models.student import Student
 from app.api.auth import get_current_user
 from typing import List, Optional
 
@@ -220,31 +223,225 @@ async def delete_class(
 ):
     """
     클래스 삭제
-    
+
     클래스 정보를 삭제합니다.
-    
+
     Path Parameters:
         - class_id: 반 ID
-    
+
     Headers:
         Authorization: Bearer {access_token}
-    
+
     Returns:
         204 No Content (응답 바디 없음)
-    
+
     Raises:
         401: 인증되지 않은 사용자
         404: 클래스를 찾을 수 없음
-    
+
     사용 예시:
         DELETE /api/admin/classes/1
     """
     academy_id = current_user.academy_id
-    
+
     ClassService.delete_class(
         db=db,
         class_id=class_id,
         academy_id=academy_id
     )
-    
+
+    return None
+
+
+# ========================================
+# 반별 학생 목록 API
+# ========================================
+
+@router.get("/{class_id}/students")
+async def get_class_students(
+    class_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    반별 학생 목록 조회
+
+    특정 반에 소속된 학생 목록을 조회합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        학생 목록 (student_id, name, status)
+
+    Raises:
+        401: 인증되지 않은 사용자
+        404: 클래스를 찾을 수 없음
+
+    사용 예시:
+        GET /api/admin/classes/1/students
+    """
+    academy_id = current_user.academy_id
+
+    # 클래스 존재 확인
+    class_obj = ClassService.get_class_by_id(db, class_id, academy_id)
+
+    if not class_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="클래스를 찾을 수 없습니다"
+        )
+
+    # 학생 목록 조회
+    students = db.query(Student).filter(Student.class_id == class_id).all()
+
+    return {
+        "class_id": class_id,
+        "class_name": class_obj.name,
+        "students": [
+            {
+                "student_id": s.student_id,
+                "name": s.name,
+                "status": s.status.value if s.status else None
+            }
+            for s in students
+        ],
+        "total": len(students)
+    }
+
+
+# ========================================
+# 시간표 API
+# ========================================
+
+@router.get("/{class_id}/schedules", response_model=ScheduleListResponse)
+async def get_class_schedules(
+    class_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    클래스 시간표 목록 조회
+
+    특정 클래스의 시간표 목록을 조회합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ScheduleListResponse: 시간표 목록
+
+    Raises:
+        401: 인증되지 않은 사용자
+        404: 클래스를 찾을 수 없음
+
+    사용 예시:
+        GET /api/admin/classes/1/schedules
+    """
+    academy_id = current_user.academy_id
+
+    schedules = ScheduleService.get_schedules_by_class(
+        db=db,
+        class_id=class_id,
+        academy_id=academy_id
+    )
+
+    return ScheduleListResponse(
+        items=[ScheduleService.to_response(s) for s in schedules],
+        total=len(schedules)
+    )
+
+
+@router.post("/{class_id}/schedules", response_model=ScheduleResponse, status_code=status.HTTP_201_CREATED)
+async def create_schedule(
+    class_id: int,
+    schedule_data: ScheduleCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    시간표 생성
+
+    클래스에 새로운 시간표를 추가합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Request Body:
+        - day_of_week: 요일 (월, 화, 수, 목, 금, 토, 일)
+        - start_time: 시작 시간
+        - end_time: 종료 시간
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ScheduleResponse: 생성된 시간표 정보
+
+    Raises:
+        401: 인증되지 않은 사용자
+        404: 클래스를 찾을 수 없음
+
+    사용 예시:
+        POST /api/admin/classes/1/schedules
+        {
+            "day_of_week": "월",
+            "start_time": "16:00:00",
+            "end_time": "18:00:00"
+        }
+    """
+    academy_id = current_user.academy_id
+
+    new_schedule = ScheduleService.create_schedule(
+        db=db,
+        class_id=class_id,
+        academy_id=academy_id,
+        schedule_data=schedule_data
+    )
+
+    return ScheduleService.to_response(new_schedule)
+
+
+@router.delete("/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_schedule(
+    schedule_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    시간표 삭제
+
+    시간표를 삭제합니다.
+
+    Path Parameters:
+        - schedule_id: 시간표 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        204 No Content (응답 바디 없음)
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 권한 없음
+        404: 시간표를 찾을 수 없음
+
+    사용 예시:
+        DELETE /api/admin/classes/schedules/1
+    """
+    academy_id = current_user.academy_id
+
+    ScheduleService.delete_schedule(
+        db=db,
+        schedule_id=schedule_id,
+        academy_id=academy_id
+    )
+
     return None

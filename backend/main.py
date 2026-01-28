@@ -38,6 +38,7 @@ from app.models.teacher_attendance import TeacherAttendance
 from app.models.assignment import Assignment, Question
 from app.models.submission import Submission, Answer
 from app.models.question_bank import QuestionBank
+from app.models.schedule import Schedule
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address

@@ -354,8 +354,49 @@ async def grade_submission_endpoint(
     current_user: User = Depends(get_teacher_or_admin)
 ):
     """
-    자동 채점 (TEACHER, ADMIN)
+    자동 채점 (TEACHER, ADMIN) - POST
     """
+    return await _grade_submission_logic(submission_id, db, current_user)
+
+
+@router.put("/{submission_id}/grade", response_model=GradeResult)
+async def grade_submission_put(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_teacher_or_admin)
+):
+    """
+    자동 채점 (TEACHER, ADMIN) - PUT
+
+    기존 POST /grade와 동일한 기능을 PUT 메서드로도 제공합니다.
+
+    Path Parameters:
+        - submission_id: 제출 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        GradeResult: 채점 결과
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 권한 없음
+        404: 제출 기록을 찾을 수 없음
+        400: 제출되지 않은 과제
+
+    사용 예시:
+        PUT /api/submissions/1/grade
+    """
+    return await _grade_submission_logic(submission_id, db, current_user)
+
+
+async def _grade_submission_logic(
+    submission_id: int,
+    db: Session,
+    current_user: User
+) -> GradeResult:
+    """채점 공통 로직"""
     submission = db.query(Submission).filter(
         Submission.submission_id == submission_id
     ).first()

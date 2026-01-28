@@ -118,6 +118,28 @@ class SubmissionListItem(BaseModel):
         from_attributes = True
 
 
+class SubmissionWithStudentItem(BaseModel):
+    """제출 목록 항목 (학생 정보 포함)"""
+    submission_id: int
+    assignment_id: int
+    student_id: int
+    student_name: str
+    status: SubmissionStatus
+    total_score: int
+    max_score: int
+    submitted_at: Optional[datetime]
+    graded_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class SubmissionWithStudentListResponse(BaseModel):
+    """제출 목록 응답 (학생 정보 포함)"""
+    items: List[SubmissionWithStudentItem]
+    total: int
+
+
 class SubmissionListResponse(BaseModel):
     """제출 목록 응답"""
     items: List[SubmissionListItem]
