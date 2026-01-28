@@ -18,6 +18,10 @@ from app.api.teacher_app import router as teacher_app_router
 from app.api.student_contact import router as student_contact_router
 from app.api.teacher_attendance import router as teacher_attendance_router
 from app.api.admin_attendance import router as admin_attendance_router
+from app.api.assignments import router as assignments_router
+from app.api.submissions import router as submissions_router
+from app.api.clinic import router as clinic_router
+from app.api.pdf import router as pdf_router
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -31,6 +35,9 @@ from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.models.student_contact import StudentContact
 from app.models.teacher_attendance import TeacherAttendance
+from app.models.assignment import Assignment, Question
+from app.models.submission import Submission, Answer
+from app.models.question_bank import QuestionBank
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -86,6 +93,10 @@ app.include_router(teacher_app_router)  # 선생님용 앱 라우터
 app.include_router(student_contact_router)  # 학생 연락처 관리 라우터
 app.include_router(teacher_attendance_router)  # 선생님 출퇴근 라우터
 app.include_router(admin_attendance_router)  # 관리자용 출퇴근 승인 라우터
+app.include_router(assignments_router, prefix="/api/assignments", tags=["Assignments"])
+app.include_router(submissions_router, prefix="/api/submissions", tags=["Submissions"])
+app.include_router(clinic_router, prefix="/api/clinic", tags=["Clinic"])
+app.include_router(pdf_router, prefix="/api/pdf", tags=["PDF"])
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")

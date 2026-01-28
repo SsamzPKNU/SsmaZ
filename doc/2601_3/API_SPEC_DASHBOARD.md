@@ -4,6 +4,7 @@
 
 ### 2-1. 관리자 대시보드 전체 통계
 
+
 #### Endpoint
 ```
 GET /api/admin/dashboard
