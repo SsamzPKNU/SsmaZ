@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple
 from app.models.student import Student
 from app.models.academy import Academy
 from app.models.attendance import Attendance, AttendanceStatus, AttendanceMethod
+from app.models.teacher import Teacher, TeacherStatus
 
 
 class KioskService:
@@ -125,3 +126,30 @@ class KioskService:
         ).first()
 
         return academy
+
+    @staticmethod
+    def lookup_teachers_by_phone(
+        db: Session,
+        academy_id: int,
+        phone_last_four: str
+    ) -> List[Teacher]:
+        """
+        전화번호 뒷자리 4자리로 선생님 조회
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID
+            phone_last_four: 전화번호 뒷자리 4자리
+
+        Returns:
+            조회된 선생님 목록
+        """
+        teachers = db.query(Teacher).filter(
+            and_(
+                Teacher.academy_id == academy_id,
+                Teacher.phone.endswith(phone_last_four),
+                Teacher.status == TeacherStatus.ACTIVE
+            )
+        ).all()
+
+        return teachers

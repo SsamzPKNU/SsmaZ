@@ -13,9 +13,13 @@ from app.schemas.kiosk import (
     StudentInfo,
     AttendanceRequest,
     AttendanceResponse,
-    AcademyInfoResponse
+    AcademyInfoResponse,
+    TeacherLookupRequest,
+    TeacherLookupResponse,
+    TeacherInfo
 )
 from app.services.kiosk_service import KioskService
+from app.services.auth_service import AuthService
 
 
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
@@ -129,5 +133,55 @@ def get_academy_info(
         success=True,
         academy_id=academy.academy_id,
         academy_name=academy.academy_name,
+        message=None
+    )
+
+
+@router.post("/teacher/lookup", response_model=TeacherLookupResponse)
+def lookup_teachers(
+    request: TeacherLookupRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    전화번호 뒷자리로 선생님 조회
+
+    - **academy_id**: 학원 ID
+    - **phone_last_four**: 선생님 전화번호 뒷자리 4자리
+    """
+    teachers = KioskService.lookup_teachers_by_phone(
+        db=db,
+        academy_id=request.academy_id,
+        phone_last_four=request.phone_last_four
+    )
+
+    if not teachers:
+        return TeacherLookupResponse(
+            success=False,
+            teachers=[],
+            message="등록된 선생님을 찾을 수 없습니다."
+        )
+
+    teacher_list = []
+    for teacher in teachers:
+        if teacher.user:
+            access_token = AuthService.create_user_token(teacher.user)
+            teacher_list.append(
+                TeacherInfo(
+                    teacher_id=teacher.teacher_id,
+                    name=teacher.name,
+                    access_token=access_token
+                )
+            )
+
+    if not teacher_list:
+        return TeacherLookupResponse(
+            success=False,
+            teachers=[],
+            message="계정이 연결된 선생님을 찾을 수 없습니다."
+        )
+
+    return TeacherLookupResponse(
+        success=True,
+        teachers=teacher_list,
         message=None
     )

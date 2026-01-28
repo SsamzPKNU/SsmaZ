@@ -76,3 +76,34 @@ class AcademyInfoResponse(BaseModel):
     academy_id: Optional[int] = Field(None, description="학원 ID")
     academy_name: Optional[str] = Field(None, description="학원 이름")
     message: Optional[str] = Field(None, description="에러 메시지")
+
+
+# === 선생님 Lookup 스키마 ===
+
+class TeacherLookupRequest(BaseModel):
+    """선생님 조회 요청"""
+    academy_id: int = Field(..., description="학원 ID")
+    phone_last_four: str = Field(
+        ...,
+        min_length=4,
+        max_length=4,
+        pattern=r"^\d{4}$",
+        description="선생님 전화번호 뒷자리 4자리"
+    )
+
+
+class TeacherInfo(BaseModel):
+    """선생님 정보 (조회 결과용)"""
+    teacher_id: int = Field(..., description="선생님 ID")
+    name: str = Field(..., description="선생님 이름")
+    access_token: str = Field(..., description="JWT 액세스 토큰")
+
+    class Config:
+        from_attributes = True
+
+
+class TeacherLookupResponse(BaseModel):
+    """선생님 조회 응답"""
+    success: bool = Field(..., description="조회 성공 여부")
+    teachers: List[TeacherInfo] = Field(default=[], description="조회된 선생님 목록")
+    message: Optional[str] = Field(None, description="메시지")
