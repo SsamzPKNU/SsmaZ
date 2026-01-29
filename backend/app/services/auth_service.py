@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.user import User, UserRole
 from app.models.teacher import Teacher
+from app.models.student import Student, StudentStatus
 from app.schemas.user import UserCreate, UserLogin
 from app.core.security import hash_password, verify_password, create_access_token, create_access_token_with_csrf
 from typing import Optional, Tuple
@@ -80,6 +81,18 @@ class AuthService:
                 employment_type="FULL_TIME"
             )
             db.add(db_teacher)
+            db.commit()
+
+        # 6. STUDENT 역할인 경우 Students 테이블에도 자동 등록
+        if db_user.user_role == UserRole.STUDENT:
+            db_student = Student(
+                academy_id=db_user.academy_id,
+                name=db_user.name or db_user.username,
+                parent_phone=db_user.phone or "",
+                status=StudentStatus.ENROLLED,
+                user_id=db_user.user_id
+            )
+            db.add(db_student)
             db.commit()
 
         return db_user

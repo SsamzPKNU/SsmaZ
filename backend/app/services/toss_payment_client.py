@@ -193,6 +193,74 @@ class TossPaymentClient:
                     detail=f"토스페이먼츠 API 연결에 실패했습니다: {str(e)}"
                 )
     
+    async def confirm_payment(
+        self,
+        payment_key: str,
+        order_id: str,
+        amount: int
+    ) -> Dict[str, Any]:
+        """
+        결제 승인 요청
+
+        토스 결제창에서 결제 완료 후 프론트에서 받은 정보로 결제를 최종 승인합니다.
+
+        Args:
+            payment_key: 토스페이먼츠 결제 키 (토스에서 발급)
+            order_id: 주문 ID (우리가 생성)
+            amount: 결제 금액 (검증용)
+
+        Returns:
+            결제 승인 결과 정보 (dict)
+
+        Raises:
+            HTTPException: API 호출 실패 시
+
+        사용 예시:
+            result = await client.confirm_payment(
+                payment_key="tgen_202601291234567890",
+                order_id="ORDER_20260129_abc123",
+                amount=300000
+            )
+        """
+        url = f"{self.BASE_URL}/confirm"
+
+        body = {
+            "paymentKey": payment_key,
+            "orderId": order_id,
+            "amount": amount
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    url,
+                    headers=self.headers,
+                    json=body,
+                    timeout=15.0
+                )
+
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    error_data = response.json()
+                    error_message = self._translate_error_message(error_data)
+
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=error_message
+                    )
+
+            except httpx.TimeoutException:
+                raise HTTPException(
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                    detail="토스페이먼츠 API 요청 시간이 초과되었습니다"
+                )
+            except httpx.RequestError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"토스페이먼츠 API 연결에 실패했습니다: {str(e)}"
+                )
+
     def _translate_error_message(self, error_data: Dict[str, Any]) -> str:
         """
         토스페이먼츠 에러 코드를 한글 메시지로 변환
@@ -211,7 +279,21 @@ class TossPaymentClient:
             # 결제 조회 관련
             "NOT_FOUND_PAYMENT": "결제 정보를 찾을 수 없습니다",
             "INVALID_PAYMENT_KEY": "유효하지 않은 결제 키입니다",
-            
+
+            # 결제 승인 관련
+            "ALREADY_PROCESSED_PAYMENT": "이미 처리된 결제입니다",
+            "PROVIDER_ERROR": "결제 승인 중 오류가 발생했습니다",
+            "EXCEED_MAX_CARD_INSTALLMENT_PLAN": "최대 할부 개월 수를 초과했습니다",
+            "NOT_ALLOWED_POINT_USE": "포인트 사용이 허용되지 않습니다",
+            "INVALID_CARD_EXPIRATION": "유효하지 않은 카드 유효기간입니다",
+            "INVALID_STOPPED_CARD": "정지된 카드입니다",
+            "EXCEED_MAX_DAILY_PAYMENT_COUNT": "일일 최대 결제 횟수를 초과했습니다",
+            "NOT_SUPPORTED_INSTALLMENT_PLAN_CARD": "할부가 지원되지 않는 카드입니다",
+            "INVALID_CARD_INSTALLMENT_PLAN": "유효하지 않은 할부 개월수입니다",
+            "INVALID_CARD_NUMBER": "유효하지 않은 카드 번호입니다",
+            "INVALID_AMOUNT": "결제 금액이 일치하지 않습니다",
+            "NOT_FOUND_PAYMENT_SESSION": "결제 세션을 찾을 수 없습니다. 다시 시도해주세요",
+
             # 결제 취소 관련
             "ALREADY_CANCELED_PAYMENT": "이미 취소된 결제입니다",
             "ALREADY_REFUNDED_PAYMENT": "이미 환불된 결제입니다",
@@ -220,11 +302,11 @@ class TossPaymentClient:
             "EXCEED_CANCEL_AMOUNT_DISCOUNT_AMOUNT": "할인 금액을 초과하여 취소할 수 없습니다",
             "INVALID_REFUND_ACCOUNT": "유효하지 않은 환불 계좌입니다",
             "REFUND_ACCOUNT_NOT_FOUND": "환불 계좌 정보가 필요합니다 (가상계좌 결제)",
-            
+
             # 인증 관련
             "UNAUTHORIZED_KEY": "인증되지 않은 시크릿 키입니다",
             "FORBIDDEN_REQUEST": "접근 권한이 없습니다",
-            
+
             # 기타
             "INVALID_REQUEST": "잘못된 요청입니다",
             "COMMON_ERROR": "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요",

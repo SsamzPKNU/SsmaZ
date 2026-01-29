@@ -17,6 +17,15 @@ class PaymentMethod(str, enum.Enum):
     TRANSFER = "TRANSFER"
 
 
+class PaymentStatus(str, enum.Enum):
+    """토스페이먼츠 결제 상태"""
+    PENDING = "PENDING"          # 결제 대기 (주문 생성됨)
+    IN_PROGRESS = "IN_PROGRESS"  # 결제 진행 중
+    DONE = "DONE"                # 결제 완료
+    CANCELED = "CANCELED"        # 결제 취소
+    FAILED = "FAILED"            # 결제 실패
+
+
 class Payment(Base):
     """
     수납/결제 정보 테이블
@@ -82,6 +91,36 @@ class Payment(Base):
         comment="결제 방법 (CARD, CASH)"
     )
 
+    # 토스페이먼츠 관련 컬럼
+    order_id = Column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+        comment="토스페이먼츠 주문 ID"
+    )
+
+    payment_key = Column(
+        String(200),
+        nullable=True,
+        unique=True,
+        index=True,
+        comment="토스페이먼츠 결제 키"
+    )
+
+    status = Column(
+        Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+        comment="토스페이먼츠 결제 상태"
+    )
+
+    invoice_id = Column(
+        Integer,
+        ForeignKey("Invoices.invoice_id", ondelete="SET NULL"),
+        nullable=True,
+        comment="연결된 청구서 ID"
+    )
+
     created_at = Column(
         TIMESTAMP,
         server_default=func.now(),
@@ -91,6 +130,7 @@ class Payment(Base):
 
     # Relationships
     student = relationship("app.models.student.Student", backref="payments")
+    invoice = relationship("app.models.invoice.Invoice", foreign_keys=[invoice_id])
 
     def __repr__(self):
         return f"<Payment(payment_id={self.payment_id}, student_id={self.student_id}, amount={self.amount})>"

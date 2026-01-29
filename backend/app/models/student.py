@@ -3,7 +3,8 @@ Student 모델 정의
 학원생 정보를 저장하는 테이블
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -76,6 +77,17 @@ class Student(Base):
         nullable=True,
         comment="생성 시간"
     )
+
+    # User 연결 (학부모/학생 계정)
+    user_id = Column(
+        Integer,
+        ForeignKey("Users.user_id", ondelete="SET NULL"),
+        nullable=True,
+        comment="연결된 사용자 ID (학부모/학생 계정)"
+    )
+
+    # Relationships
+    user = relationship("app.models.user.User", backref="students")
 
     def __repr__(self):
         return f"<Student(student_id={self.student_id}, name='{self.name}')>"

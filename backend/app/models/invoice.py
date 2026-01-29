@@ -115,7 +115,7 @@ class Invoice(Base):
 
     # Relationships
     student = relationship("app.models.student.Student", backref="invoices")
-    payment = relationship("app.models.payment.Payment", backref="invoice")
+    payment = relationship("app.models.payment.Payment", foreign_keys=[payment_id], backref="linked_invoice")
 
     def __repr__(self):
         return f"<Invoice(invoice_id={self.invoice_id}, student_id={self.student_id}, amount={self.amount})>"
