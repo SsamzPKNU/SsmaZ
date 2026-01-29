@@ -9,12 +9,19 @@ from app.models.user import User, UserRole
 from app.models.student import Student
 from app.models.attendance import Attendance, AttendanceStatus
 from app.schemas.dashboard import (
-    DashboardResponse, 
-    SummaryStats, 
-    AttendanceRate, 
+    DashboardResponse,
+    SummaryStats,
+    AttendanceRate,
     RecentActivity,
-    RevenueTrend
+    RevenueTrend,
+    OverdueAssignment,
+    TodayScheduleItem
 )
+from app.models.assignment import Assignment
+from app.models.submission import Submission, SubmissionStatus
+from app.models.schedule import Schedule
+from app.models.class_model import Class
+from app.models.teacher import Teacher
 from datetime import datetime, date, timedelta
 from typing import List
 import calendar
@@ -46,12 +53,20 @@ class DashboardService:
         
         # 4. 매출 추이 (최근 6개월)
         revenue_trend = DashboardService._get_revenue_trend(db, academy_id)
-        
+
+        # 5. 미제출 과제 목록
+        overdue_assignments = DashboardService._get_overdue_assignments(db, academy_id)
+
+        # 6. 오늘 수업 스케줄
+        today_schedule = DashboardService._get_today_schedule(db, academy_id)
+
         return DashboardResponse(
             summary=summary,
             attendance_rate=attendance_rate,
             recent_activities=recent_activities,
-            revenue_trend=revenue_trend
+            revenue_trend=revenue_trend,
+            overdue_assignments=overdue_assignments,
+            today_schedule=today_schedule
         )
     
     @staticmethod
@@ -228,5 +243,118 @@ class DashboardService:
                 month=month_str,
                 amount=amount
             ))
-        
+
         return trends
+
+    @staticmethod
+    def _get_overdue_assignments(db: Session, academy_id: int, limit: int = 10) -> List[OverdueAssignment]:
+        """마감일이 지난 미제출 과제 조회"""
+        from sqlalchemy import func as sqlfunc
+
+        today = date.today()
+
+        # 마감일이 지난 활성 과제 조회
+        overdue_query = db.query(Assignment).filter(
+            and_(
+                Assignment.academy_id == academy_id,
+                Assignment.is_active == True,
+                Assignment.due_date < today,
+                Assignment.due_date.isnot(None)
+            )
+        ).order_by(Assignment.due_date.desc()).limit(limit).all()
+
+        result = []
+        for assignment in overdue_query:
+            # 해당 과제의 반에 속한 학생 수 조회
+            if assignment.class_id:
+                total_students = db.query(Student).filter(
+                    and_(
+                        Student.class_id == assignment.class_id,
+                        Student.status == "재원"
+                    )
+                ).count()
+            else:
+                # 개인 과제인 경우 학원 전체 학생
+                total_students = db.query(Student).filter(
+                    and_(
+                        Student.academy_id == academy_id,
+                        Student.status == "재원"
+                    )
+                ).count()
+
+            # 제출한 학생 수
+            submitted_count = db.query(Submission).filter(
+                and_(
+                    Submission.assignment_id == assignment.assignment_id,
+                    Submission.status.in_([SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED])
+                )
+            ).count()
+
+            not_submitted = total_students - submitted_count
+            if not_submitted <= 0:
+                continue
+
+            # 반 이름 조회
+            class_name = None
+            if assignment.class_id:
+                class_obj = db.query(Class).filter(Class.class_id == assignment.class_id).first()
+                class_name = class_obj.name if class_obj else None
+
+            result.append(OverdueAssignment(
+                assignment_id=assignment.assignment_id,
+                title=assignment.title,
+                due_date=assignment.due_date,
+                class_name=class_name,
+                not_submitted_count=not_submitted
+            ))
+
+        return result
+
+    @staticmethod
+    def _get_today_schedule(db: Session, academy_id: int) -> List[TodayScheduleItem]:
+        """오늘 수업 스케줄 조회"""
+
+        # 오늘 요일 구하기 (월=0, 일=6)
+        today_weekday = date.today().weekday()
+        weekday_map = {0: "월", 1: "화", 2: "수", 3: "목", 4: "금", 5: "토", 6: "일"}
+        today_day = weekday_map.get(today_weekday, "월")
+
+        # 오늘 요일에 해당하는 스케줄 조회
+        schedules = db.query(Schedule).join(Class).filter(
+            and_(
+                Class.academy_id == academy_id,
+                Schedule.day_of_week == today_day
+            )
+        ).order_by(Schedule.start_time).all()
+
+        result = []
+        for schedule in schedules:
+            class_obj = schedule.class_obj
+
+            # 담당 선생님 이름
+            teacher_name = None
+            if class_obj and class_obj.teacher_id:
+                teacher = db.query(Teacher).filter(Teacher.teacher_id == class_obj.teacher_id).first()
+                teacher_name = teacher.name if teacher else None
+
+            # 수강 학생 수
+            student_count = 0
+            if class_obj:
+                student_count = db.query(Student).filter(
+                    and_(
+                        Student.class_id == class_obj.class_id,
+                        Student.status == "재원"
+                    )
+                ).count()
+
+            result.append(TodayScheduleItem(
+                schedule_id=schedule.schedule_id,
+                class_id=class_obj.class_id if class_obj else 0,
+                class_name=class_obj.name if class_obj else "Unknown",
+                start_time=schedule.start_time.strftime("%H:%M") if schedule.start_time else "00:00",
+                end_time=schedule.end_time.strftime("%H:%M") if schedule.end_time else "00:00",
+                teacher_name=teacher_name,
+                student_count=student_count
+            ))
+
+        return result

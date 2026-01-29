@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from datetime import datetime, date
 from app.models.attendance import Attendance, AttendanceStatus, AttendanceMethod
 from app.models.student import Student
-from app.schemas.attendance import AttendanceResponse
-from typing import Optional
+from app.schemas.attendance import AttendanceResponse, AttendanceStats, AttendanceBatchItem
+from typing import Optional, List, Tuple
 
 def send_sms_notification(parent_phone: str, message: str) -> bool:
     """
@@ -90,20 +91,133 @@ class AttendanceService:
         return attendance_record
 
     @staticmethod
-    def get_today_attendance(db: Session) -> list:
+    def get_today_attendance(db: Session, academy_id: Optional[int] = None) -> Tuple[list, AttendanceStats]:
+        """
+        오늘 출결 현황 조회 (통계 포함)
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID (None이면 전체 조회 - 하위 호환성)
+
+        Returns:
+            Tuple[list, AttendanceStats]: (학생별 출결 목록, 통계)
+        """
         today = date.today()
-        students = db.query(Student).all()
-        
+
+        # 학생 조회 (academy_id 필터링)
+        student_query = db.query(Student).filter(Student.status == "재원")
+        if academy_id:
+            student_query = student_query.filter(Student.academy_id == academy_id)
+        students = student_query.all()
+
         result = []
+        stats = AttendanceStats(total=len(students))
+
         for student in students:
             # 해당 학생의 오늘 출결 기록 조회
             att = db.query(Attendance).filter(
-                Attendance.student_id == student.student_id,
-                Attendance.attendance_date == today
+                and_(
+                    Attendance.student_id == student.student_id,
+                    Attendance.attendance_date == today
+                )
             ).first()
-            
+
+            # 통계 집계
+            if att:
+                if att.status == AttendanceStatus.PRESENT:
+                    stats.present += 1
+                elif att.status == AttendanceStatus.LATE:
+                    stats.late += 1
+                elif att.status == AttendanceStatus.ABSENT:
+                    stats.absent += 1
+                elif att.status == AttendanceStatus.EARLY_LEAVE:
+                    stats.early += 1
+
             result.append({
                 "student": student,
                 "attendance": att
             })
-        return result
+
+        return result, stats
+
+    @staticmethod
+    def check_attendance_batch(
+        db: Session,
+        academy_id: int,
+        items: List[AttendanceBatchItem],
+        target_date: Optional[date] = None
+    ) -> dict:
+        """
+        출결 일괄 저장
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID
+            items: 출결 항목 리스트
+            target_date: 대상 날짜 (기본값: 오늘)
+
+        Returns:
+            dict: {success_count, fail_count, failed_items}
+        """
+        target = target_date or date.today()
+        now = datetime.now()
+
+        success_count = 0
+        failed_items = []
+
+        for item in items:
+            try:
+                # 학생 확인 (해당 학원 소속인지)
+                student = db.query(Student).filter(
+                    and_(
+                        Student.student_id == item.student_id,
+                        Student.academy_id == academy_id
+                    )
+                ).first()
+
+                if not student:
+                    failed_items.append({
+                        "student_id": item.student_id,
+                        "error": "학생을 찾을 수 없습니다"
+                    })
+                    continue
+
+                # 기존 출결 기록 확인
+                existing = db.query(Attendance).filter(
+                    and_(
+                        Attendance.student_id == item.student_id,
+                        Attendance.attendance_date == target
+                    )
+                ).first()
+
+                if existing:
+                    # 기존 기록 업데이트
+                    existing.status = item.status
+                else:
+                    # 새 기록 생성
+                    new_record = Attendance(
+                        student_id=item.student_id,
+                        academy_id=academy_id,
+                        status=item.status,
+                        check_in_at=now if item.status != AttendanceStatus.ABSENT else None,
+                        attendance_date=target,
+                        method=AttendanceMethod.MANUAL,
+                        is_notified=False
+                    )
+                    db.add(new_record)
+
+                success_count += 1
+
+            except Exception as e:
+                failed_items.append({
+                    "student_id": item.student_id,
+                    "error": str(e)
+                })
+
+        db.commit()
+
+        return {
+            "success_count": success_count,
+            "fail_count": len(failed_items),
+            "failed_items": failed_items
+        }

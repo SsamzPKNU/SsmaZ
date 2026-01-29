@@ -5,7 +5,7 @@ API 요청/응답 데이터 검증 및 직렬화
 
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 
 
 class SummaryStats(BaseModel):
@@ -72,12 +72,58 @@ class RevenueTrend(BaseModel):
         }
 
 
+class OverdueAssignment(BaseModel):
+    """미제출 과제 정보"""
+    assignment_id: int = Field(..., description="과제 ID")
+    title: str = Field(..., description="과제 제목")
+    due_date: date = Field(..., description="마감일")
+    class_name: Optional[str] = Field(None, description="반 이름")
+    not_submitted_count: int = Field(..., description="미제출 학생 수")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "assignment_id": 1,
+                "title": "함수 문제 풀이",
+                "due_date": "2026-01-27",
+                "class_name": "중1-A",
+                "not_submitted_count": 3
+            }
+        }
+
+
+class TodayScheduleItem(BaseModel):
+    """오늘 수업 스케줄"""
+    schedule_id: int = Field(..., description="스케줄 ID")
+    class_id: int = Field(..., description="반 ID")
+    class_name: str = Field(..., description="반 이름")
+    start_time: str = Field(..., description="시작 시간 (HH:MM)")
+    end_time: str = Field(..., description="종료 시간 (HH:MM)")
+    teacher_name: Optional[str] = Field(None, description="담당 선생님")
+    student_count: int = Field(0, description="수강 학생 수")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "schedule_id": 1,
+                "class_id": 1,
+                "class_name": "중1-A",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "teacher_name": "김선생",
+                "student_count": 15
+            }
+        }
+
+
 class DashboardResponse(BaseModel):
     """대시보드 전체 응답"""
     summary: SummaryStats = Field(..., description="전체 요약 통계")
     attendance_rate: AttendanceRate = Field(..., description="출석률")
     recent_activities: List[RecentActivity] = Field(..., description="최근 활동 내역")
     revenue_trend: List[RevenueTrend] = Field(..., description="최근 6개월 매출 추이")
+    overdue_assignments: List[OverdueAssignment] = Field(default=[], description="미제출 과제 목록")
+    today_schedule: List[TodayScheduleItem] = Field(default=[], description="오늘 수업 스케줄")
 
     class Config:
         json_schema_extra = {

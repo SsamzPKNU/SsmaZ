@@ -1,23 +1,59 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.api.auth import get_current_user
+from app.models.user import User
 from datetime import date
-from app.schemas.attendance import AttendanceCheckRequest, AttendanceResponse, TodayAttendanceResponse
+from typing import Optional
+from app.schemas.attendance import (
+    AttendanceCheckRequest,
+    AttendanceResponse,
+    TodayAttendanceResponse,
+    AttendanceStats,
+    AttendanceBatchRequest,
+    AttendanceBatchResponse
+)
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter()
 
+
 @router.get("/today", response_model=TodayAttendanceResponse)
-def get_today_attendance(db: Session = Depends(get_db)):
+def get_today_attendance(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     오늘의 출결 현황 조회
     모든 학생 목록과 그들의 오늘 출결 상태를 반환
     """
-    results = AttendanceService.get_today_attendance(db)
-    return {
-        "date": date.today(),
-        "students": results
-    }
+    academy_id = current_user.academy_id
+    results, stats = AttendanceService.get_today_attendance(db, academy_id)
+    return TodayAttendanceResponse(
+        date=date.today(),
+        stats=stats,
+        students=results
+    )
+
+
+@router.post("/batch", response_model=AttendanceBatchResponse)
+def check_attendance_batch(
+    request: AttendanceBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    출결 일괄 저장
+    여러 학생의 출결을 한 번에 처리
+    """
+    academy_id = current_user.academy_id
+    result = AttendanceService.check_attendance_batch(
+        db=db,
+        academy_id=academy_id,
+        items=request.items,
+        target_date=request.date
+    )
+    return AttendanceBatchResponse(**result)
 
 
 @router.post("/check", response_model=AttendanceResponse)

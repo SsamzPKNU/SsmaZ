@@ -22,6 +22,8 @@ from app.api.assignments import router as assignments_router
 from app.api.submissions import router as submissions_router
 from app.api.clinic import router as clinic_router
 from app.api.pdf import router as pdf_router
+from app.api.support import router as support_router
+from app.api.invoice import router as invoice_router
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -39,6 +41,8 @@ from app.models.assignment import Assignment, Question
 from app.models.submission import Submission, Answer
 from app.models.question_bank import QuestionBank
 from app.models.schedule import Schedule
+from app.models.support import Inquiry, FAQ, Notice
+from app.models.invoice import Invoice
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -98,6 +102,8 @@ app.include_router(assignments_router, prefix="/api/assignments", tags=["Assignm
 app.include_router(submissions_router, prefix="/api/submissions", tags=["Submissions"])
 app.include_router(clinic_router, prefix="/api/clinic", tags=["Clinic"])
 app.include_router(pdf_router, prefix="/api/pdf", tags=["PDF"])
+app.include_router(support_router)  # 상담/문의 관리 라우터
+app.include_router(invoice_router)  # 청구서 관리 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
