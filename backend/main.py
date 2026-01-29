@@ -25,6 +25,7 @@ from app.api.pdf import router as pdf_router
 from app.api.support import router as support_router
 from app.api.invoice import router as invoice_router
 from app.api.student_payment import router as student_payment_router
+from app.api.student_portal import router as student_portal_router
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -120,6 +121,7 @@ app.include_router(pdf_router, prefix="/api/pdf", tags=["PDF"])
 app.include_router(support_router)  # 상담/문의 관리 라우터
 app.include_router(invoice_router)  # 청구서 관리 라우터
 app.include_router(student_payment_router)  # 학생 결제 라우터
+app.include_router(student_portal_router)  # 학생 포털 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
