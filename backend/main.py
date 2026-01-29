@@ -71,17 +71,31 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
 # CORS 설정 (라우터보다 먼저 등록)
 # httpOnly 쿠키 전송을 위해 credentials=True 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # 쿠키 사용 시 구체적인 origin 필요
-    allow_credentials=True,  # 쿠키 전송 허용
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["Set-Cookie"],  # 쿠키 헤더 노출
-)
+# 개발환경: 모든 origin 동적 허용, 프로덕션: 명시적 origin만 허용
+if ENVIRONMENT == "development":
+    # allow_origin_regex로 모든 origin 매칭 (credentials와 함께 사용 가능)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Set-Cookie"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Set-Cookie"],
+    )
 
 # 라우터 등록
 app.include_router(auth_router)
