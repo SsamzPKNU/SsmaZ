@@ -26,6 +26,11 @@ from app.api.support import router as support_router
 from app.api.invoice import router as invoice_router
 from app.api.student_payment import router as student_payment_router
 from app.api.student_portal import router as student_portal_router
+from app.api.teacher_assignment import router as teacher_assignment_router
+from app.api.teacher_analytics import router as teacher_analytics_router
+from app.api.teacher_clinic import router as teacher_clinic_router
+from app.api.teacher_message import router as teacher_message_router
+from app.api.teacher_print import router as teacher_print_router
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -45,6 +50,7 @@ from app.models.question_bank import QuestionBank
 from app.models.schedule import Schedule
 from app.models.support import Inquiry, FAQ, Notice
 from app.models.invoice import Invoice
+from app.models.message_template import MessageTemplate
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -122,6 +128,11 @@ app.include_router(support_router)  # 상담/문의 관리 라우터
 app.include_router(invoice_router)  # 청구서 관리 라우터
 app.include_router(student_payment_router)  # 학생 결제 라우터
 app.include_router(student_portal_router)  # 학생 포털 라우터
+app.include_router(teacher_assignment_router)  # 선생님 과제/채점 라우터
+app.include_router(teacher_analytics_router)  # 선생님 오답 분석 라우터
+app.include_router(teacher_clinic_router)  # 선생님 클리닉 라우터
+app.include_router(teacher_message_router)  # 선생님 메시지 라우터
+app.include_router(teacher_print_router)  # 선생님 프린트 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
