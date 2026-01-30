@@ -5,7 +5,7 @@
 
 from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -18,7 +18,11 @@ from app.schemas.student_portal import (
     StudentPaymentsResponse,
     StudentScheduleResponse,
     StudentGradesResponse,
-    GradeAnalysisResponse
+    GradeAnalysisResponse,
+    StudentAssignmentsResponse,
+    StudentAssignmentDetailResponse,
+    AssignmentSubmitRequest,
+    AssignmentSubmitResponse
 )
 
 router = APIRouter(
@@ -167,3 +171,114 @@ async def get_student_grade_analysis(
     service = StudentPortalService(db)
     result = service.get_grade_analysis(current_user, period)
     return GradeAnalysisResponse(**result)
+
+
+@router.get(
+    "/schedules",
+    response_model=StudentScheduleResponse,
+    summary="학생 스케줄 조회 (복수형)",
+    description="학생 스케줄 조회 - /schedule의 alias 엔드포인트입니다."
+)
+async def get_student_schedules(
+    start_date: Optional[date] = Query(None, description="시작일 (기본: 오늘)"),
+    end_date: Optional[date] = Query(None, description="종료일 (기본: 30일 후)"),
+    type: str = Query("all", description="이벤트 유형 (all, assignment)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_student_user)
+):
+    """
+    학생 스케줄 조회 (복수형 alias)
+
+    /schedule과 동일한 기능을 제공합니다.
+    프론트엔드 호환성을 위해 제공됩니다.
+    """
+    service = StudentPortalService(db)
+    result = service.get_schedule(current_user, start_date, end_date, type)
+    return StudentScheduleResponse(**result)
+
+
+@router.get(
+    "/assignments",
+    response_model=StudentAssignmentsResponse,
+    summary="학생 과제 목록",
+    description="로그인한 사용자에게 연결된 학생의 과제 목록을 조회합니다."
+)
+async def get_student_assignments(
+    status: Optional[str] = Query(None, description="상태 필터 (remaining: 미완료, completed: 완료)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_student_user)
+):
+    """
+    학생 과제 목록
+
+    - 학생에게 할당된 모든 과제 목록
+    - status=remaining: 미제출/진행중 과제만
+    - status=completed: 제출완료/채점완료 과제만
+    """
+    service = StudentPortalService(db)
+    result = service.get_assignments(current_user, status)
+    return StudentAssignmentsResponse(**result)
+
+
+@router.get(
+    "/assignments/{assignment_id}",
+    response_model=StudentAssignmentDetailResponse,
+    summary="과제 상세 조회",
+    description="특정 과제의 상세 정보와 문제 목록을 조회합니다."
+)
+async def get_student_assignment_detail(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_student_user)
+):
+    """
+    과제 상세 조회
+
+    - 과제 정보 및 문제 목록
+    - 기존에 저장된 답안이 있으면 함께 반환
+    """
+    service = StudentPortalService(db)
+    result = service.get_assignment_detail(current_user, assignment_id)
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="과제를 찾을 수 없거나 접근 권한이 없습니다."
+        )
+
+    return StudentAssignmentDetailResponse(**result)
+
+
+@router.post(
+    "/assignments/{assignment_id}/submit",
+    response_model=AssignmentSubmitResponse,
+    summary="과제 제출",
+    description="과제 답안을 제출합니다."
+)
+async def submit_student_assignment(
+    assignment_id: int,
+    request: AssignmentSubmitRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_student_user)
+):
+    """
+    과제 제출
+
+    - 답안 목록을 받아 제출 처리
+    - 이미 제출된 과제는 재제출 불가
+    - X-CSRF-Token 헤더 필요
+    """
+    service = StudentPortalService(db)
+
+    # Pydantic 모델을 dict로 변환
+    answers = [{"question_id": a.question_id, "answer": a.answer} for a in request.answers]
+
+    result = service.submit_assignment(current_user, assignment_id, answers)
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="과제를 찾을 수 없거나 접근 권한이 없습니다."
+        )
+
+    return AssignmentSubmitResponse(**result)

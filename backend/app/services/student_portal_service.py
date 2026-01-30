@@ -12,8 +12,8 @@ from calendar import monthrange
 from app.models.user import User
 from app.models.student import Student
 from app.models.attendance import Attendance, AttendanceStatus
-from app.models.submission import Submission, SubmissionStatus
-from app.models.assignment import Assignment
+from app.models.submission import Submission, SubmissionStatus, Answer
+from app.models.assignment import Assignment, Question
 from app.models.schedule import Schedule
 from app.models.class_model import Class
 from app.models.invoice import Invoice, InvoiceStatus
@@ -746,4 +746,293 @@ class StudentPortalService:
             "overall_average": 0.0,
             "monthly_trend": [],
             "by_subject": []
+        }
+
+    # ========== 과제 조회/제출 ==========
+
+    def get_assignments(self, user: User, status: Optional[str] = None) -> dict:
+        """
+        학생 과제 목록 조회
+
+        Args:
+            user: 현재 로그인한 사용자
+            status: 필터 (remaining: 미완료, completed: 완료)
+
+        Returns:
+            과제 목록
+        """
+        student = self.get_primary_student(user)
+        if not student:
+            return self._empty_assignments_response()
+
+        # 학생에게 할당된 과제 조회
+        assignments_query = self.db.query(Assignment).filter(
+            Assignment.is_active == True
+        )
+
+        # 반 과제 또는 개인 과제
+        if student.class_id:
+            assignments_query = assignments_query.filter(
+                (Assignment.class_id == student.class_id) |
+                (Assignment.class_id.is_(None))
+            )
+
+        assignments = assignments_query.order_by(Assignment.due_date.desc()).all()
+
+        result_assignments = []
+        for assignment in assignments:
+            # 해당 과제에 대한 제출 기록 확인
+            submission = self.db.query(Submission).filter(
+                Submission.assignment_id == assignment.assignment_id,
+                Submission.student_id == student.student_id
+            ).first()
+
+            # 상태 결정
+            if submission:
+                if submission.status == SubmissionStatus.GRADED:
+                    assignment_status = "GRADED"
+                elif submission.status == SubmissionStatus.SUBMITTED:
+                    assignment_status = "SUBMITTED"
+                else:
+                    assignment_status = "IN_PROGRESS"
+            else:
+                assignment_status = "NOT_STARTED"
+
+            # 필터 적용
+            if status == "remaining" and assignment_status in ["SUBMITTED", "GRADED"]:
+                continue
+            if status == "completed" and assignment_status not in ["SUBMITTED", "GRADED"]:
+                continue
+
+            # 클래스명 조회
+            class_name = None
+            if assignment.class_id:
+                class_obj = self.db.query(Class).filter(
+                    Class.class_id == assignment.class_id
+                ).first()
+                class_name = class_obj.name if class_obj else None
+
+            result_assignments.append({
+                "assignment_id": assignment.assignment_id,
+                "title": assignment.title,
+                "description": assignment.description,
+                "due_date": assignment.due_date,
+                "class_name": class_name,
+                "status": assignment_status,
+                "submission_id": submission.submission_id if submission else None
+            })
+
+        return {
+            "student_id": student.student_id,
+            "student_name": student.name,
+            "total_count": len(result_assignments),
+            "assignments": result_assignments
+        }
+
+    def get_assignment_detail(self, user: User, assignment_id: int) -> Optional[dict]:
+        """
+        과제 상세 조회
+
+        Args:
+            user: 현재 로그인한 사용자
+            assignment_id: 과제 ID
+
+        Returns:
+            과제 상세 정보 (문제 포함)
+        """
+        student = self.get_primary_student(user)
+        if not student:
+            return None
+
+        # 과제 조회
+        assignment = self.db.query(Assignment).filter(
+            Assignment.assignment_id == assignment_id,
+            Assignment.is_active == True
+        ).first()
+
+        if not assignment:
+            return None
+
+        # 학생이 접근 가능한 과제인지 확인
+        if assignment.class_id and student.class_id != assignment.class_id:
+            return None
+
+        # 제출 기록 확인
+        submission = self.db.query(Submission).filter(
+            Submission.assignment_id == assignment_id,
+            Submission.student_id == student.student_id
+        ).first()
+
+        # 상태 결정
+        if submission:
+            if submission.status == SubmissionStatus.GRADED:
+                status = "GRADED"
+            elif submission.status == SubmissionStatus.SUBMITTED:
+                status = "SUBMITTED"
+            else:
+                status = "IN_PROGRESS"
+        else:
+            status = "NOT_STARTED"
+
+        # 클래스명 조회
+        class_name = None
+        if assignment.class_id:
+            class_obj = self.db.query(Class).filter(
+                Class.class_id == assignment.class_id
+            ).first()
+            class_name = class_obj.name if class_obj else None
+
+        # 문제 목록 조회
+        questions = self.db.query(Question).filter(
+            Question.assignment_id == assignment_id
+        ).order_by(Question.question_number.asc()).all()
+
+        # 기존 답안 조회 (제출 기록이 있는 경우)
+        answers_map = {}
+        if submission:
+            answers = self.db.query(Answer).filter(
+                Answer.submission_id == submission.submission_id
+            ).all()
+            answers_map = {a.question_id: a.student_answer for a in answers}
+
+        question_list = []
+        max_score = 0
+        for q in questions:
+            max_score += q.points
+            question_list.append({
+                "question_id": q.question_id,
+                "question_number": q.question_number,
+                "question_text": q.question_text,
+                "question_type": q.question_type.value if q.question_type else "CHOICE",
+                "options": q.options,
+                "points": q.points,
+                "current_answer": answers_map.get(q.question_id)
+            })
+
+        return {
+            "assignment_id": assignment.assignment_id,
+            "title": assignment.title,
+            "description": assignment.description,
+            "due_date": assignment.due_date,
+            "class_name": class_name,
+            "status": status,
+            "submission_id": submission.submission_id if submission else None,
+            "total_questions": len(questions),
+            "max_score": max_score,
+            "questions": question_list
+        }
+
+    def submit_assignment(
+        self,
+        user: User,
+        assignment_id: int,
+        answers: List[dict]
+    ) -> Optional[dict]:
+        """
+        과제 제출
+
+        Args:
+            user: 현재 로그인한 사용자
+            assignment_id: 과제 ID
+            answers: 답안 목록 [{"question_id": 1, "answer": "답"}]
+
+        Returns:
+            제출 결과
+        """
+        student = self.get_primary_student(user)
+        if not student:
+            return None
+
+        # 과제 조회
+        assignment = self.db.query(Assignment).filter(
+            Assignment.assignment_id == assignment_id,
+            Assignment.is_active == True
+        ).first()
+
+        if not assignment:
+            return None
+
+        # 학생이 접근 가능한 과제인지 확인
+        if assignment.class_id and student.class_id != assignment.class_id:
+            return None
+
+        # 기존 제출 기록 확인 또는 생성
+        submission = self.db.query(Submission).filter(
+            Submission.assignment_id == assignment_id,
+            Submission.student_id == student.student_id
+        ).first()
+
+        # 이미 제출 완료된 경우
+        if submission and submission.status in [SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED]:
+            return {
+                "submission_id": submission.submission_id,
+                "status": submission.status.value,
+                "submitted_at": submission.submitted_at,
+                "message": "이미 제출된 과제입니다."
+            }
+
+        now = datetime.now()
+
+        if not submission:
+            # 새 제출 기록 생성
+            # max_score 계산
+            questions = self.db.query(Question).filter(
+                Question.assignment_id == assignment_id
+            ).all()
+            max_score = sum(q.points for q in questions)
+
+            submission = Submission(
+                assignment_id=assignment_id,
+                student_id=student.student_id,
+                status=SubmissionStatus.SUBMITTED,
+                total_score=0,
+                max_score=max_score,
+                submitted_at=now
+            )
+            self.db.add(submission)
+            self.db.flush()  # submission_id 생성
+        else:
+            # 기존 제출 기록 업데이트
+            submission.status = SubmissionStatus.SUBMITTED
+            submission.submitted_at = now
+
+        # 답안 저장/업데이트
+        for answer_data in answers:
+            question_id = answer_data.get("question_id")
+            student_answer = answer_data.get("answer")
+
+            # 기존 답안 확인
+            existing_answer = self.db.query(Answer).filter(
+                Answer.submission_id == submission.submission_id,
+                Answer.question_id == question_id
+            ).first()
+
+            if existing_answer:
+                existing_answer.student_answer = student_answer
+            else:
+                new_answer = Answer(
+                    submission_id=submission.submission_id,
+                    question_id=question_id,
+                    student_answer=student_answer,
+                    is_correct=None,
+                    points_earned=0
+                )
+                self.db.add(new_answer)
+
+        self.db.commit()
+
+        return {
+            "submission_id": submission.submission_id,
+            "status": submission.status.value,
+            "submitted_at": submission.submitted_at,
+            "message": "과제가 성공적으로 제출되었습니다."
+        }
+
+    def _empty_assignments_response(self) -> dict:
+        """빈 과제 목록 응답"""
+        return {
+            "student_id": 0,
+            "student_name": "",
+            "total_count": 0,
+            "assignments": []
         }

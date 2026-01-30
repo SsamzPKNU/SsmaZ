@@ -187,3 +187,68 @@ class GradeAnalysisResponse(BaseModel):
     overall_average: float
     monthly_trend: List[MonthlyGradeAnalysis]
     by_subject: List[SubjectAnalysis]
+
+
+# ========== 과제 조회/제출 ==========
+
+class StudentAssignmentItem(BaseModel):
+    """과제 목록 항목"""
+    assignment_id: int
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    class_name: Optional[str] = None
+    status: str  # NOT_STARTED, IN_PROGRESS, SUBMITTED, GRADED
+    submission_id: Optional[int] = None
+
+
+class StudentAssignmentsResponse(BaseModel):
+    """과제 목록 응답"""
+    student_id: int
+    student_name: str
+    total_count: int
+    assignments: List[StudentAssignmentItem]
+
+
+class QuestionItem(BaseModel):
+    """문제 항목 (과제 상세용)"""
+    question_id: int
+    question_number: int
+    question_text: str
+    question_type: str  # CHOICE, SHORT_ANSWER, ESSAY
+    options: Optional[List[str]] = None
+    points: int
+    current_answer: Optional[str] = None
+
+
+class StudentAssignmentDetailResponse(BaseModel):
+    """과제 상세 응답"""
+    assignment_id: int
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[date] = None
+    class_name: Optional[str] = None
+    status: str  # NOT_STARTED, IN_PROGRESS, SUBMITTED, GRADED
+    submission_id: Optional[int] = None
+    total_questions: int
+    max_score: int
+    questions: List[QuestionItem]
+
+
+class AnswerSubmitItem(BaseModel):
+    """답안 제출 항목"""
+    question_id: int
+    answer: str
+
+
+class AssignmentSubmitRequest(BaseModel):
+    """과제 제출 요청"""
+    answers: List[AnswerSubmitItem]
+
+
+class AssignmentSubmitResponse(BaseModel):
+    """과제 제출 응답"""
+    submission_id: int
+    status: str
+    submitted_at: datetime
+    message: str
