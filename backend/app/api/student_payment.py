@@ -104,8 +104,7 @@ async def create_payment_order(
 )
 async def confirm_payment(
     request: PaymentConfirmRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     결제 승인
@@ -113,14 +112,15 @@ async def confirm_payment(
     토스 결제창에서 결제 완료 후, successUrl로 리다이렉트될 때
     전달받은 정보(paymentKey, orderId, amount)로 결제를 최종 승인합니다.
 
-    1. 주문 정보 검증
+    1. 주문 정보 검증 (order_id로 DB에서 payment 조회)
     2. 토스페이먼츠 결제 승인 API 호출
     3. Payment 상태를 DONE으로 업데이트
     4. 연결된 Invoice 상태를 PAID로 업데이트
+
+    Note: 인증 없이 order_id 검증만으로 처리 (토스 리다이렉트 시 쿠키 전달 문제 해결)
     """
     service = StudentPaymentService(db)
     result = await service.confirm_payment(
-        user=current_user,
         payment_key=request.payment_key,
         order_id=request.order_id,
         amount=request.amount

@@ -219,7 +219,6 @@ class StudentPaymentService:
 
     async def confirm_payment(
         self,
-        user: User,
         payment_key: str,
         order_id: str,
         amount: int
@@ -227,12 +226,11 @@ class StudentPaymentService:
         """
         결제 승인 처리
 
-        1. Payment 레코드 조회 및 검증
+        1. Payment 레코드 조회 및 검증 (order_id로 검증)
         2. 토스페이먼츠 결제 승인 API 호출
         3. Payment/Invoice 상태 업데이트
 
         Args:
-            user: 현재 로그인한 사용자
             payment_key: 토스페이먼츠 결제 키
             order_id: 주문 ID
             amount: 결제 금액
@@ -252,18 +250,6 @@ class StudentPaymentService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="주문 정보를 찾을 수 없습니다"
-            )
-
-        # 권한 확인
-        student = self.db.query(Student).filter(
-            Student.student_id == payment.student_id,
-            Student.user_id == user.user_id
-        ).first()
-
-        if not student:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="해당 결제에 대한 권한이 없습니다"
             )
 
         # 이미 처리된 결제인지 확인

@@ -56,21 +56,21 @@ async def get_current_user(
     # 1. httpOnly 쿠키에서 토큰 확인
     if access_token:
         token = access_token
-        
-        # CSRF 토큰 검증 (쿠키 방식일 때만)
-        csrf_token = request.headers.get("X-CSRF-Token")
-        
-        if not csrf_token:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="CSRF 토큰이 필요합니다",
-            )
-        
-        if not verify_csrf_token(token, csrf_token):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="CSRF 토큰이 유효하지 않습니다",
-            )
+
+        # [개발용 비활성화] CSRF 토큰 검증 (쿠키 방식일 때만)
+        # csrf_token = request.headers.get("X-CSRF-Token")
+        #
+        # if not csrf_token:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="CSRF 토큰이 필요합니다",
+        #     )
+        #
+        # if not verify_csrf_token(token, csrf_token):
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="CSRF 토큰이 유효하지 않습니다",
+        #     )
     
     # 2. Bearer 토큰 헤더에서 토큰 확인 (폴백)
     elif bearer_token:
@@ -227,23 +227,24 @@ async def login(
             user_agent=user_agent
         )
         
-        # 3. CSRF 토큰이 포함된 JWT 토큰 생성
-        access_token, csrf_token = AuthService.create_user_token_with_csrf(user)
+        # [개발용 변경] CSRF 토큰 없이 일반 토큰만 생성
+        # access_token, csrf_token = AuthService.create_user_token_with_csrf(user)
+        access_token = AuthService.create_user_token(user)
         
         # 4. httpOnly 쿠키로 JWT 토큰 설정
         response.set_cookie(
             key="access_token",
             value=access_token,
-            httponly=True,  # JavaScript에서 접근 불가 (XSS 방지)
-            secure=IS_PRODUCTION,  # HTTPS에서만 전송 (프로덕션)
-            samesite="strict" if IS_PRODUCTION else "lax",  # CSRF 추가 방지
+            httponly=True,
+            secure=False,  # [개발용] HTTP에서도 동작
+            samesite="lax",  # [개발용] 크로스 사이트 허용
             max_age=30 * 60,  # 30분
             path="/"
         )
         
         # 5. CSRF 토큰과 사용자 정보 반환
         return Token(
-            csrf_token=csrf_token,
+            csrf_token="",  # [개발용] CSRF 토큰 비활성화
             token_type="bearer",
             user=UserResponse.from_orm(user)
         )

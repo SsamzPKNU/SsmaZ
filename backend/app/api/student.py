@@ -66,7 +66,7 @@ async def get_students(
         db=db,
         academy_id=academy_id,
         search=search,
-        status=status,
+        status_filter=status,
         page=page,
         limit=limit
     )
