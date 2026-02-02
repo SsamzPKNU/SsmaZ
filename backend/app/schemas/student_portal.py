@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 """
 학생 포털 API 스키마 정의
 학생용 대시보드, 출결, 수납, 스케줄, 성적 조회 응답 스키마
 """
 
-from datetime import date, time, datetime
+from datetime import date as DateType, time as TimeType, datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -13,7 +15,7 @@ from pydantic import BaseModel
 class AttendanceRecord(BaseModel):
     """개별 출결 기록"""
     att_id: int
-    attendance_date: date
+    attendance_date: DateType
     status: str  # 출석, 지각, 결석, 조퇴
     check_in_at: Optional[datetime] = None
     check_out_at: Optional[datetime] = None
@@ -60,8 +62,8 @@ class TodayClass(BaseModel):
     """오늘 수업 정보"""
     class_id: int
     class_name: str
-    start_time: time
-    end_time: time
+    start_time: TimeType
+    end_time: TimeType
 
 
 class StudentDashboardResponse(BaseModel):
@@ -83,7 +85,7 @@ class PaymentRecord(BaseModel):
     amount: int
     description: Optional[str] = None
     status: str  # PENDING, SENT, PAID, OVERDUE, CANCELLED
-    due_date: Optional[date] = None
+    due_date: Optional[DateType] = None
     paid_at: Optional[datetime] = None
 
 
@@ -113,9 +115,9 @@ class ScheduleEvent(BaseModel):
     event_id: str  # schedule_123 또는 assignment_456
     event_type: str  # class, assignment
     title: str
-    date: date
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
+    date: Optional[DateType] = None  # 정규 시간표는 날짜 없음
+    start_time: Optional[TimeType] = None
+    end_time: Optional[TimeType] = None
     description: Optional[str] = None
     class_id: Optional[int] = None
     class_name: Optional[str] = None
@@ -131,8 +133,8 @@ class StudentScheduleResponse(BaseModel):
     """학생 스케줄 조회 응답"""
     student_id: int
     student_name: str
-    start_date: date
-    end_date: date
+    start_date: DateType
+    end_date: DateType
     weekly_schedule: List[WeeklySchedule]
     events: List[ScheduleEvent]
 
@@ -196,7 +198,7 @@ class StudentAssignmentItem(BaseModel):
     assignment_id: int
     title: str
     description: Optional[str] = None
-    due_date: Optional[date] = None
+    due_date: Optional[DateType] = None
     class_name: Optional[str] = None
     status: str  # NOT_STARTED, IN_PROGRESS, SUBMITTED, GRADED
     submission_id: Optional[int] = None
@@ -226,7 +228,7 @@ class StudentAssignmentDetailResponse(BaseModel):
     assignment_id: int
     title: str
     description: Optional[str] = None
-    due_date: Optional[date] = None
+    due_date: Optional[DateType] = None
     class_name: Optional[str] = None
     status: str  # NOT_STARTED, IN_PROGRESS, SUBMITTED, GRADED
     submission_id: Optional[int] = None
