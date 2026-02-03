@@ -1,3 +1,17 @@
+import os
+from dotenv import load_dotenv
+
+# 다른 모듈 import 전에 환경 변수 먼저 로드
+load_dotenv()
+
+import logging
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
@@ -31,6 +45,8 @@ from app.api.teacher_analytics import router as teacher_analytics_router
 from app.api.teacher_clinic import router as teacher_clinic_router
 from app.api.teacher_message import router as teacher_message_router
 from app.api.teacher_print import router as teacher_print_router
+from app.api.chat import router as chat_router
+from app.services.faq_loader import load_faq_to_chromadb
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -55,11 +71,6 @@ from app.models.message_template import MessageTemplate
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import os
-from dotenv import load_dotenv
-
-# 환경 변수 로드
-load_dotenv()
 
 # Rate Limiter 설정 (IP 기반)
 limiter = Limiter(key_func=get_remote_address)
@@ -133,15 +144,27 @@ app.include_router(teacher_analytics_router)  # 선생님 오답 분석 라우�
 app.include_router(teacher_clinic_router)  # 선생님 클리닉 라우터
 app.include_router(teacher_message_router)  # 선생님 메시지 라우터
 app.include_router(teacher_print_router)  # 선생님 프린트 라우터
+app.include_router(chat_router)  # FAQ 챗봇 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-MODEL_NAME = os.getenv("MODEL_NAME", "student-review")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama31:latest")
 
 review_generator = ReviewGenerator(
     ollama_url=OLLAMA_URL,
     model_name=MODEL_NAME
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """서버 시작 시 FAQ 데이터를 ChromaDB에 로드"""
+    print("[Startup] FAQ 데이터 로드 시작...")
+    success = load_faq_to_chromadb()
+    if success:
+        print("[Startup] FAQ 데이터 로드 완료")
+    else:
+        print("[Startup] FAQ 데이터 로드 실패 - 챗봇 기능이 제한될 수 있습니다")
 
 
 @app.get("/", tags=["Root"])
