@@ -1,15 +1,21 @@
 """
 FAQ 챗봇 서비스
 RAG(Retrieval-Augmented Generation) 패턴을 사용하는 챗봇 서비스
+캐싱 레이어를 통해 응답 지연 최소화
 """
 
 import requests
 import json
+import logging
 from typing import AsyncGenerator, List, Dict, Any, Optional, Generator
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import os
+
+from app.services.chat_cache import get_faq_cache, FAQCache
+
+logger = logging.getLogger(__name__)
 
 
 # ========================================
@@ -74,6 +80,9 @@ class ChatService:
 
         # ChromaDB 클라이언트 초기화
         self.chroma_client: Optional[chromadb.HttpClient] = None
+
+        # 캐시 참조
+        self._cache: FAQCache = get_faq_cache()
 
     def _get_chroma_client(self) -> chromadb.HttpClient:
         """ChromaDB 클라이언트 반환 (lazy initialization)"""
@@ -339,9 +348,14 @@ class ChatService:
         except Exception as e:
             yield f"[오류] 요청 실패: {str(e)}"
 
-    async def generate_stream(self, question: str) -> AsyncGenerator[str, None]:
+    def generate_stream_sync_with_cache(self, question: str) -> Generator[str, None, None]:
         """
-        Ollama 스트리밍 응답 생성 (비동기 래퍼)
+        캐시 적용된 스트리밍 응답 생성
+
+        흐름:
+        1. 캐시 확인 → 히트 시 즉시 반환 (<50ms)
+        2. 캐시 미스 → 기존 RAG 파이프라인 실행
+        3. 응답 캐싱 (에러 응답 제외)
 
         Args:
             question: 사용자 질문
@@ -349,9 +363,97 @@ class ChatService:
         Yields:
             응답 텍스트 조각
         """
-        # 동기 generator를 비동기로 래핑
+        import time
+        start_time = time.time()
+
+        # Step 1: 캐시 확인
+        cached_response = self._cache.get_cached_response(question)
+        if cached_response is not None:
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"[Cache HIT] 질문: '{question[:30]}...' ({elapsed:.1f}ms)")
+            yield cached_response
+            return
+
+        # Step 2: 캐시 미스 → RAG 파이프라인 실행
+        logger.info(f"[Cache MISS] 질문: '{question[:30]}...'")
+
+        # 응답 수집
+        full_response = []
         for chunk in self.generate_stream_sync(question):
+            full_response.append(chunk)
             yield chunk
+
+        # Step 3: 응답 캐싱
+        complete_response = "".join(full_response)
+        if complete_response and not complete_response.startswith("[오류]"):
+            self._cache.cache_response(question, complete_response)
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"[Cache STORED] 응답 길이: {len(complete_response)}자 ({elapsed:.1f}ms)")
+
+    async def generate_stream(self, question: str) -> AsyncGenerator[str, None]:
+        """
+        Ollama 스트리밍 응답 생성 (비동기 래퍼, 캐시 적용)
+
+        Args:
+            question: 사용자 질문
+
+        Yields:
+            응답 텍스트 조각
+        """
+        # 캐시 적용 버전 사용
+        for chunk in self.generate_stream_sync_with_cache(question):
+            yield chunk
+
+    def warm_up_faq(self, faq_data: List[Dict[str, str]]) -> int:
+        """
+        FAQ 질문에 대한 답변을 사전 생성하여 캐싱
+
+        서버 시작 시 백그라운드에서 실행하여
+        첫 사용자 요청의 지연을 최소화
+
+        Args:
+            faq_data: FAQ 데이터 리스트 [{"question": "...", "answer": "..."}, ...]
+
+        Returns:
+            캐싱된 질문 수
+        """
+        import time
+
+        cached_count = 0
+        total = len(faq_data)
+
+        logger.info(f"[FAQ Warm-up] 시작: {total}개 질문")
+        start_time = time.time()
+
+        for i, faq in enumerate(faq_data, 1):
+            question = faq.get("question", "")
+            if not question:
+                continue
+
+            # 이미 캐시된 경우 스킵
+            if self._cache.get_cached_response(question) is not None:
+                logger.debug(f"[FAQ Warm-up] {i}/{total} 스킵 (이미 캐시됨): {question[:30]}")
+                continue
+
+            try:
+                # 응답 생성 및 캐싱
+                response_parts = []
+                for chunk in self.generate_stream_sync(question):
+                    response_parts.append(chunk)
+
+                complete_response = "".join(response_parts)
+                if complete_response and not complete_response.startswith("[오류]"):
+                    self._cache.cache_response(question, complete_response)
+                    cached_count += 1
+                    logger.info(f"[FAQ Warm-up] {i}/{total} 완료: {question[:30]}...")
+
+            except Exception as e:
+                logger.warning(f"[FAQ Warm-up] {i}/{total} 실패: {question[:30]}... - {e}")
+
+        elapsed = time.time() - start_time
+        logger.info(f"[FAQ Warm-up] 완료: {cached_count}/{total}개 캐싱 ({elapsed:.1f}초)")
+
+        return cached_count
 
 
 # 싱글톤 인스턴스 생성

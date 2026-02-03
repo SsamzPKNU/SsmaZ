@@ -14,6 +14,7 @@ logging.basicConfig(
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from app.schemas.text_review import ReviewRequest, ReviewResponse, HealthResponse
 from app.services.text_review.review_generator import ReviewGenerator
 
@@ -47,6 +48,9 @@ from app.api.teacher_message import router as teacher_message_router
 from app.api.teacher_print import router as teacher_print_router
 from app.api.chat import router as chat_router
 from app.services.faq_loader import load_faq_to_chromadb
+from app.services.chat_service import get_chat_service
+import asyncio
+import json
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -156,15 +160,69 @@ review_generator = ReviewGenerator(
 )
 
 
+async def warm_up_faq_background():
+    """
+    FAQ 챗봇 Warm-up (백그라운드)
+
+    서버 시작 후 1초 대기 후 FAQ 질문에 대한 답변을 사전 생성
+    이를 통해 첫 사용자 요청의 지연을 최소화
+    """
+    # 서버 완전 시작 후 1초 대기
+    await asyncio.sleep(1)
+
+    print("[FAQ Warm-up] 백그라운드 Warm-up 시작...")
+
+    try:
+        # FAQ 데이터 로드
+        faq_path = os.path.join(os.path.dirname(__file__), "app", "data", "faq_data.json")
+        if not os.path.exists(faq_path):
+            print(f"[FAQ Warm-up] FAQ 파일 없음: {faq_path}")
+            return
+
+        with open(faq_path, 'r', encoding='utf-8') as f:
+            faq_data = json.load(f)
+
+        # ChatService warm-up 실행
+        chat_service = get_chat_service()
+        cached_count = chat_service.warm_up_faq(faq_data)
+
+        print(f"[FAQ Warm-up] 완료: {cached_count}개 질문 캐싱됨")
+
+    except Exception as e:
+        print(f"[FAQ Warm-up] 오류 발생: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
-    """서버 시작 시 FAQ 데이터를 ChromaDB에 로드"""
+    """서버 시작 시 초기화"""
+    # FAQ 데이터 로드
     print("[Startup] FAQ 데이터 로드 시작...")
     success = load_faq_to_chromadb()
     if success:
         print("[Startup] FAQ 데이터 로드 완료")
     else:
         print("[Startup] FAQ 데이터 로드 실패 - 챗봇 기능이 제한될 수 있습니다")
+
+    # Ollama 모델 Warm-up
+    print("[Startup] Ollama 모델 Warm-up 시작...")
+    warmup_success = await review_generator.warm_up()
+    if warmup_success:
+        print("[Startup] Ollama 모델 Warm-up 완료")
+    else:
+        print("[Startup] Ollama 모델 Warm-up 실패 - 첫 요청 시 지연 발생 가능")
+
+    # FAQ 챗봇 Warm-up (백그라운드 태스크로 실행)
+    # 서버 시작 지연 방지를 위해 백그라운드에서 실행
+    print("[Startup] FAQ 챗봇 Warm-up 백그라운드 태스크 시작...")
+    asyncio.create_task(warm_up_faq_background())
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """서버 종료 시 리소스 정리"""
+    print("[Shutdown] HTTP 클라이언트 정리 중...")
+    await review_generator.close()
+    print("[Shutdown] 정리 완료")
 
 
 @app.get("/", tags=["Root"])
@@ -231,6 +289,53 @@ async def generate_review(request: ReviewRequest):
         success=True,
         message=result["message"],
         error=None
+    )
+
+
+@app.post("/api/review/generate/stream", tags=["Review"])
+async def generate_review_stream(request: ReviewRequest):
+    """
+    수업 리뷰 문자 메시지 스트리밍 생성
+
+    실시간으로 생성되는 텍스트를 Server-Sent Events 형식으로 반환합니다.
+
+    - **student_name**: 학생 이름
+    - **parent_name**: 학부모 이름 (선택, 없으면 학생 이름 사용)
+    - **learning_content**: 오늘 배운 학습 내용
+    - **attitude**: 학생의 수업 태도
+    """
+
+    # Ollama 연결 확인
+    if not await review_generator.check_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama 서버에 연결할 수 없습니다. Ollama가 실행 중인지 확인해주세요."
+        )
+
+    async def event_generator():
+        """SSE 형식으로 스트리밍"""
+        try:
+            async for chunk in review_generator.generate_review_stream(
+                student_name=request.student_name,
+                parent_name=request.parent_name or request.student_name,
+                learning_content=request.learning_content,
+                attitude=request.attitude
+            ):
+                yield f"data: {chunk}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            yield f"data: [ERROR] {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
     )
 
 
