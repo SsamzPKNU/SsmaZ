@@ -104,6 +104,25 @@ class InquiryService:
         return inquiry
 
     @staticmethod
+    def get_my_inquiries(
+        db: Session,
+        user_id: int,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[Inquiry], int]:
+        """내 문의 목록 조회 (user_id로 필터링)"""
+        query = db.query(Inquiry).filter(Inquiry.user_id == user_id)
+
+        if status:
+            query = query.filter(Inquiry.status == status)
+
+        total = query.count()
+        inquiries = query.order_by(Inquiry.created_at.desc()).offset(skip).limit(limit).all()
+
+        return inquiries, total
+
+    @staticmethod
     def to_response(inquiry: Inquiry) -> InquiryResponse:
         """Inquiry 모델을 InquiryResponse로 변환"""
         return InquiryResponse(
@@ -239,6 +258,28 @@ class NoticeService:
 
         total = query.count()
         # 고정 공지 우선, 그 다음 최신순
+        notices = query.order_by(
+            Notice.is_pinned.desc(),
+            Notice.created_at.desc()
+        ).offset(skip).limit(limit).all()
+
+        return notices, total
+
+    @staticmethod
+    def get_notices_for_targets(
+        db: Session,
+        academy_id: int,
+        targets: List[str],
+        skip: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[Notice], int]:
+        """다중 target 공지사항 목록 조회 (선생님/학생 앱용)"""
+        query = db.query(Notice).filter(Notice.academy_id == academy_id)
+
+        if targets:
+            query = query.filter(Notice.target.in_(targets))
+
+        total = query.count()
         notices = query.order_by(
             Notice.is_pinned.desc(),
             Notice.created_at.desc()

@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse
+from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse, ClassStatus
 from app.schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleListResponse
 from app.services.class_service import ClassService
 from app.services.schedule_service import ScheduleService
@@ -26,6 +26,7 @@ router = APIRouter(
 @router.get("", response_model=List[ClassResponse])
 async def get_classes(
     teacher_id: Optional[int] = Query(None, description="선생님 ID 필터"),
+    status: Optional[ClassStatus] = Query(None, description="반 상태 필터 (active, inactive, pending, closed)"),
     skip: int = Query(0, ge=0, description="페이지네이션 오프셋"),
     limit: int = Query(100, ge=1, le=1000, description="페이지네이션 제한"),
     current_user: User = Depends(get_current_user),
@@ -33,43 +34,49 @@ async def get_classes(
 ):
     """
     클래스 목록 조회
-    
+
     학원의 모든 클래스(반) 목록을 조회합니다.
-    선생님별로 필터링할 수 있습니다.
-    
+    선생님별 또는 상태별로 필터링할 수 있습니다.
+
     Query Parameters:
         - teacher_id: 선생님 ID 필터 (선택)
+        - status: 반 상태 필터 (active, inactive, pending, closed) (선택)
         - skip: 페이지네이션 오프셋 (기본: 0)
         - limit: 페이지네이션 제한 (기본: 100)
-    
+
     Headers:
         Authorization: Bearer {access_token}
-    
+
     Returns:
         List[ClassResponse]: 클래스 목록
-        
+
     Response Fields:
         - id: 반 고유 ID
         - name: 반 이름
         - teacher_id: 담당 선생님 ID
         - teacher_name: 담당 선생님 이름
-        - schedule: 수업 일정
         - capacity: 정원
         - current_students: 현재 학생 수
-    
+        - subject: 과목
+        - grade_level: 학년/레벨
+        - fee: 수강료
+        - status: 반 상태
+
     Raises:
         401: 인증되지 않은 사용자
-    
+
     사용 예시:
         GET /api/admin/classes
         GET /api/admin/classes?teacher_id=10
+        GET /api/admin/classes?status=active
     """
     academy_id = current_user.academy_id
-    
+
     classes = ClassService.get_classes(
         db=db,
         academy_id=academy_id,
         teacher_id=teacher_id,
+        status_filter=status,
         skip=skip,
         limit=limit
     )

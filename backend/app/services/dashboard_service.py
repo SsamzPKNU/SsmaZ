@@ -298,7 +298,7 @@ class DashboardService:
             class_name = None
             if assignment.class_id:
                 class_obj = db.query(Class).filter(Class.class_id == assignment.class_id).first()
-                class_name = class_obj.name if class_obj else None
+                class_name = class_obj.class_name if class_obj else None
 
             result.append(OverdueAssignment(
                 assignment_id=assignment.assignment_id,
@@ -350,7 +350,7 @@ class DashboardService:
             result.append(TodayScheduleItem(
                 schedule_id=schedule.schedule_id,
                 class_id=class_obj.class_id if class_obj else 0,
-                class_name=class_obj.name if class_obj else "Unknown",
+                class_name=class_obj.class_name if class_obj else "Unknown",
                 start_time=schedule.start_time.strftime("%H:%M") if schedule.start_time else "00:00",
                 end_time=schedule.end_time.strftime("%H:%M") if schedule.end_time else "00:00",
                 teacher_name=teacher_name,

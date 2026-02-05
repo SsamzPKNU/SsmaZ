@@ -13,13 +13,13 @@ class StudentStatus(str, Enum):
     """학생 상태"""
     ENROLLED = "재원"
     PAUSED = "휴원"
-    GRADUATED = "졸업"
+    WITHDRAWN = "퇴원"
 
 
 class StudentCreate(BaseModel):
     """학생 등록 요청 스키마"""
     name: str = Field(..., min_length=1, max_length=50, description="학생 이름")
-    parent_phone: str = Field(..., max_length=20, description="학부모 전화번호")
+    parent_phone: str = Field(..., max_length=20, description="학생 연락처")
     class_id: Optional[int] = Field(None, description="반 ID")
     status: Optional[StudentStatus] = Field(StudentStatus.ENROLLED, description="학생 상태")
 
@@ -37,7 +37,7 @@ class StudentCreate(BaseModel):
 class StudentUpdate(BaseModel):
     """학생 정보 수정 요청 스키마"""
     name: Optional[str] = Field(None, min_length=1, max_length=50, description="학생 이름")
-    parent_phone: Optional[str] = Field(None, max_length=20, description="학부모 전화번호")
+    parent_phone: Optional[str] = Field(None, max_length=20, description="학생 연락처")
     class_id: Optional[int] = Field(None, description="반 ID")
     status: Optional[StudentStatus] = Field(None, description="학생 상태")
 
@@ -56,8 +56,8 @@ class StudentResponse(BaseModel):
     academy_id: int = Field(..., description="학원 ID")
     class_id: Optional[int] = Field(None, description="반 ID")
     name: str = Field(..., description="학생 이름")
-    parent_phone: str = Field(..., description="학부모 전화번호")
-    status: Optional[str] = Field(None, description="학생 상태 (재원, 휴원, 졸업)")
+    parent_phone: str = Field(..., description="학생 연락처")
+    status: Optional[str] = Field(None, description="학생 상태 (재원, 휴원, 퇴원)")
     regdate: Optional[datetime] = Field(None, description="등록 시간")
 
     class Config:

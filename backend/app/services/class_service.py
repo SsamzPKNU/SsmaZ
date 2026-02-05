@@ -6,10 +6,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from fastapi import HTTPException, status
-from app.models.class_model import Class
+from app.models.class_model import Class, ClassStatus as ModelClassStatus
 from app.models.teacher import Teacher
 from app.models.student import Student
-from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse
+from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse, ClassStatus
 from typing import List, Optional
 
 
@@ -21,31 +21,38 @@ class ClassService:
         db: Session,
         academy_id: int,
         teacher_id: Optional[int] = None,
+        status_filter: Optional[ClassStatus] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[Class]:
         """
         클래스 목록 조회
-        
+
         Args:
             db: 데이터베이스 세션
             academy_id: 학원 ID
             teacher_id: 선생님 ID 필터 (optional)
+            status_filter: 반 상태 필터 (optional)
             skip: 페이지네이션 오프셋
             limit: 페이지네이션 제한
-            
+
         Returns:
             List[Class]: 클래스 목록
         """
         query = db.query(Class).filter(Class.academy_id == academy_id)
-        
+
         # 선생님 필터
         if teacher_id:
             query = query.filter(Class.teacher_id == teacher_id)
-        
+
+        # 상태 필터
+        if status_filter:
+            model_status = ModelClassStatus(status_filter.value)
+            query = query.filter(Class.status == model_status)
+
         # 정렬 및 페이지네이션
-        classes = query.order_by(Class.created_at.desc()).offset(skip).limit(limit).all()
-        
+        classes = query.order_by(Class.class_id.desc()).offset(skip).limit(limit).all()
+
         return classes
     
     @staticmethod
@@ -103,13 +110,19 @@ class ClassService:
                     detail="선생님을 찾을 수 없습니다"
                 )
         
+        # 스키마 status -> 모델 status 변환
+        model_status = ModelClassStatus(class_data.status.value)
+
         # Class 객체 생성
         new_class = Class(
             academy_id=academy_id,
             teacher_id=class_data.teacher_id,
-            name=class_data.name,
-            schedule=class_data.schedule,
-            capacity=class_data.capacity
+            class_name=class_data.name,
+            capacity=class_data.capacity,
+            subject=class_data.subject,
+            grade_level=class_data.grade_level,
+            fee=class_data.fee,
+            status=model_status
         )
         
         db.add(new_class)
@@ -165,9 +178,16 @@ class ClassService:
         
         # 변경된 필드만 업데이트
         update_data = class_data.model_dump(exclude_unset=True)
-        
+
+        # 스키마 필드명 -> DB 컬럼명 매핑
+        field_mapping = {"name": "class_name"}
+
         for field, value in update_data.items():
-            setattr(class_obj, field, value)
+            db_field = field_mapping.get(field, field)
+            # status 필드는 모델 Enum으로 변환
+            if field == "status" and value is not None:
+                value = ModelClassStatus(value)
+            setattr(class_obj, db_field, value)
         
         db.commit()
         db.refresh(class_obj)
@@ -238,14 +258,20 @@ class ClassService:
         # 현재 학생 수 조회
         current_students = ClassService.get_current_students_count(db, class_obj.class_id)
         
+        # 모델 status -> 스키마 status 변환
+        schema_status = ClassStatus(class_obj.status.value) if class_obj.status else ClassStatus.ACTIVE
+
         return ClassResponse(
             id=class_obj.class_id,
-            name=class_obj.name,
+            name=class_obj.class_name,
             teacher_id=class_obj.teacher_id,
             teacher_name=teacher_name,
-            schedule=class_obj.schedule,
             capacity=class_obj.capacity,
-            current_students=current_students
+            current_students=current_students,
+            subject=class_obj.subject,
+            grade_level=class_obj.grade_level,
+            fee=class_obj.fee,
+            status=schema_status
         )
     
     @staticmethod

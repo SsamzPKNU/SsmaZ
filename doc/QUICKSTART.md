@@ -10,6 +10,8 @@
 - [ ] Node.js 18 이상
 - [ ] MySQL 8.0 이상
 - [ ] Git
+- [ ] ChromaDB 서버 (FAQ 챗봇용, 선택)
+- [ ] Ollama (FAQ 챗봇용, 선택)
 
 ## 📝 단계별 설정
 
@@ -55,10 +57,19 @@ nano .env  # 또는 vi .env
    # 새로운 SECRET_KEY 생성
    python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
-   
+
    생성된 키를 `.env` 파일의 `SECRET_KEY`에 붙여넣기:
    ```
    SECRET_KEY=생성된_키_여기에_붙여넣기
+   ```
+
+3. **FAQ 챗봇 설정** (선택사항):
+   ```
+   CHROMADB_HOST=localhost
+   CHROMADB_PORT=18000
+   OLLAMA_URL=http://localhost:11434
+   CHAT_MODEL_NAME=llama31
+   CHROMADB_COLLECTION=academy_faq
    ```
 
 #### 2-3. Backend 서버 실행
@@ -157,6 +168,41 @@ curl http://localhost:8000/
 
 ### Frontend 확인
 브라우저에서 http://localhost:3000 접속 시 로그인 페이지가 표시되어야 합니다.
+
+### FAQ 챗봇 확인 (선택)
+
+#### 1. 챗봇 상태 확인
+```bash
+curl http://localhost:8000/api/chat/health
+```
+
+예상 응답:
+```json
+{
+  "status": "healthy",
+  "chromadb_connected": true,
+  "ollama_connected": true,
+  "model_name": "llama31",
+  "cache": {
+    "cache_size": 20,
+    "hits": 0,
+    "misses": 0,
+    "hit_rate": "0.0%"
+  }
+}
+```
+
+#### 2. FAQ 질문 테스트
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "수업료는 얼마인가요?"}'
+```
+
+#### 3. 캐시 통계 확인
+```bash
+curl http://localhost:8000/api/chat/cache/stats
+```
 
 ## ❌ 문제 해결
 

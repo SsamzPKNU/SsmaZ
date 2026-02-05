@@ -211,10 +211,9 @@ async def startup_event():
     else:
         print("[Startup] Ollama 모델 Warm-up 실패 - 첫 요청 시 지연 발생 가능")
 
-    # FAQ 챗봇 Warm-up (백그라운드 태스크로 실행)
-    # 서버 시작 지연 방지를 위해 백그라운드에서 실행
-    print("[Startup] FAQ 챗봇 Warm-up 백그라운드 태스크 시작...")
-    asyncio.create_task(warm_up_faq_background())
+    # FAQ 챗봇 Warm-up (내부 발표용이므로 비활성화)
+    # print("[Startup] FAQ 챗봇 Warm-up 백그라운드 태스크 시작...")
+    # asyncio.create_task(warm_up_faq_background())
 
 
 @app.on_event("shutdown")

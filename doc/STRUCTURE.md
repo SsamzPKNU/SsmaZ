@@ -19,7 +19,8 @@ project3/
 │   │   ├── 📂 api/                 # API 엔드포인트
 │   │   │   ├── __init__.py
 │   │   │   ├── 📄 auth.py          # ⭐ 인증 API (회원가입, 로그인)
-│   │   │   └── 📄 attendance.py    # ⭐ 출결 API (출결 조회, 체크)
+│   │   │   ├── 📄 attendance.py    # ⭐ 출결 API (출결 조회, 체크)
+│   │   │   └── 📄 chat.py          # ⭐ FAQ 챗봇 API (질문, 캐시 통계)
 │   │   │
 │   │   ├── 📂 core/                # 핵심 설정
 │   │   │   ├── __init__.py
@@ -37,12 +38,19 @@ project3/
 │   │   │   ├── __init__.py
 │   │   │   ├── 📄 user.py          # ⭐ User 관련 스키마
 │   │   │   ├── 📄 attendance.py    # ⭐ Attendance 관련 스키마
+│   │   │   ├── 📄 chat.py          # ⭐ FAQ 챗봇 스키마
 │   │   │   └── 📄 text_review.py   # 기존 리뷰 기능 스키마
+│   │   │
+│   │   ├── 📂 data/                # 정적 데이터
+│   │   │   └── 📄 faq_data.json    # ⭐ FAQ 데이터 (20개 질문)
 │   │   │
 │   │   └── 📂 services/            # 비즈니스 로직
 │   │       ├── __init__.py
 │   │       ├── 📄 auth_service.py  # ⭐ 인증 서비스 로직
 │   │       ├── 📄 attendance_service.py  # ⭐ 출결 서비스 로직
+│   │       ├── 📄 chat_service.py  # ⭐ FAQ 챗봇 서비스 (RAG)
+│   │       ├── 📄 chat_cache.py    # ⭐ FAQ 캐싱 모듈
+│   │       ├── 📄 faq_loader.py    # ⭐ FAQ ChromaDB 로더
 │   │       └── 📂 text_review/     # 기존 리뷰 기능
 │   │           ├── __init__.py
 │   │           └── review_generator.py
@@ -83,19 +91,25 @@ project3/
 
 | 파일 | 역할 | 중요도 |
 |------|------|--------|
-| `main.py` | FastAPI 앱 시작점, 라우터 등록 | ⭐⭐⭐ |
+| `main.py` | FastAPI 앱 시작점, 라우터 등록, FAQ Warm-up | ⭐⭐⭐ |
 | `app/models/user.py` | User 테이블 정의 (DB 스키마) | ⭐⭐⭐ |
 | `app/models/student.py` | Student 테이블 정의 | ⭐⭐⭐ |
 | `app/models/attendance.py` | Attendance 테이블 정의 | ⭐⭐⭐ |
 | `app/models/login_log.py` | LoginLog 테이블 정의 | ⭐⭐ |
 | `app/schemas/user.py` | API 요청/응답 형식 정의 | ⭐⭐⭐ |
 | `app/schemas/attendance.py` | 출결 API 요청/응답 형식 정의 | ⭐⭐⭐ |
+| `app/schemas/chat.py` | FAQ 챗봇 요청/응답 형식 정의 | ⭐⭐⭐ |
 | `app/core/security.py` | JWT 토큰, 비밀번호 암호화 | ⭐⭐⭐ |
 | `app/core/database.py` | MySQL 연결 설정 | ⭐⭐⭐ |
 | `app/services/auth_service.py` | 회원가입/로그인 비즈니스 로직 | ⭐⭐⭐ |
 | `app/services/attendance_service.py` | 출결 관리 비즈니스 로직 | ⭐⭐⭐ |
+| `app/services/chat_service.py` | FAQ 챗봇 RAG 서비스 | ⭐⭐⭐ |
+| `app/services/chat_cache.py` | FAQ 응답 캐싱 모듈 | ⭐⭐⭐ |
+| `app/services/faq_loader.py` | FAQ ChromaDB 로더 | ⭐⭐ |
 | `app/api/auth.py` | 회원가입/로그인 API 엔드포인트 | ⭐⭐⭐ |
 | `app/api/attendance.py` | 출결 관리 API 엔드포인트 | ⭐⭐⭐ |
+| `app/api/chat.py` | FAQ 챗봇 API 엔드포인트 | ⭐⭐⭐ |
+| `app/data/faq_data.json` | FAQ 데이터 (20개 질문) | ⭐⭐ |
 
 ### Frontend
 
@@ -178,6 +192,28 @@ localStorage에 저장 (api.js)
 메인 페이지로 이동 (HomePage.jsx)
 ```
 
+### FAQ 챗봇 플로우 (캐시 적용)
+```
+사용자 질문 입력
+    ↓
+API 호출 (POST /api/chat)
+    ↓
+질문 정규화 & 해시 생성 (chat_cache.py)
+    ↓
+캐시 조회 (FAQCache.get_cached_response)
+    ├── HIT → 즉시 반환 (<50ms)
+    └── MISS ↓
+        ChromaDB 유사 문서 검색 (chat_service.py)
+            ↓
+        RAG 프롬프트 생성 (환각 방지)
+            ↓
+        Ollama 답변 생성 (llama31)
+            ↓
+        응답 캐싱 (FAQCache.cache_response)
+            ↓
+        스트리밍 응답 반환
+```
+
 ## 📝 파일 수정 시 참고사항
 
 ### Backend 수정 시
@@ -226,12 +262,18 @@ localStorage에 저장 (api.js)
 9. `backend/app/api/auth.py` - 인증 API 정의
 10. `backend/app/api/attendance.py` - 출결 API 정의
 
-### 5단계: Frontend 이해
-11. `frontend/src/services/api.js` - API 통신
-12. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
-13. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
-14. `frontend/src/pages/AttendanceDashboard.jsx` - 출결 대시보드 UI
-15. `frontend/src/App.jsx` - 라우팅
+### 5단계: FAQ 챗봇 이해
+11. `backend/app/data/faq_data.json` - FAQ 데이터
+12. `backend/app/services/chat_cache.py` - 캐싱 로직
+13. `backend/app/services/chat_service.py` - RAG 챗봇 로직
+14. `backend/app/api/chat.py` - 챗봇 API 정의
+
+### 6단계: Frontend 이해
+15. `frontend/src/services/api.js` - API 통신
+16. `frontend/src/pages/LoginPage.jsx` - 로그인 UI
+17. `frontend/src/pages/SignupPage.jsx` - 회원가입 UI
+18. `frontend/src/pages/AttendanceDashboard.jsx` - 출결 대시보드 UI
+19. `frontend/src/App.jsx` - 라우팅
 
 ---
 

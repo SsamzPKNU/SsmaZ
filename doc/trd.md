@@ -1,10 +1,13 @@
 # [TRD] 프로젝트3 - 시스템 설계서
-> **최종 수정일**: 2026-01-27
+> **최종 수정일**: 2026-02-03
 
 ## 1. 기술 스택 (Tech Stack)
 - **Frontend**: React (Vite), 일반 CSS (TypeScript, Tailwind 미사용)
 - **Backend**: FastAPI (Python 3.10+)
 - **Database**: MySQL 5.5 (Engine: InnoDB)
+- **Vector DB**: ChromaDB (FAQ 임베딩 저장)
+- **LLM**: Ollama (llama31 모델, 로컬 실행)
+- **Embedding**: SentenceTransformer (snunlp/KR-SBERT-V40K-klueNLI-augSTS)
 - **Auth**: Native JWT (OAuth2 Password Flow) 기반 직접 로그인 (ID/PW)
 
 > **참고**: 비전공자 팀원의 작업 편의를 위해 TypeScript와 Tailwind CSS를 제거하고 순수 JavaScript와 일반 CSS를 사용합니다.
@@ -49,6 +52,16 @@
   - `text_review` 모듈 연동.
   - `DailyLogs` 생성 시 혹은 `Attendance` 상태 변경 시 특정 훅(Hook)을 통해 문자 모델 호출.
   - `is_sent` 플래그를 통해 중복 발송 방지.
+- **FAQ 챗봇 시스템**:
+  - `ChatService`를 통한 RAG(Retrieval-Augmented Generation) 기반 FAQ 응답.
+  - ChromaDB에 FAQ 임베딩 저장 및 유사도 검색.
+  - Ollama(llama31)를 통한 자연어 답변 생성.
+  - 환각 방지: 시스템 프롬프트 + 컨텍스트 제한 + 환각 키워드 감지.
+- **FAQ 캐싱 최적화**:
+  - `FAQCache` 클래스를 통한 응답 캐싱 (최대 100개).
+  - 질문 정규화 및 MD5 해시 기반 캐시 키 생성.
+  - 서버 시작 시 FAQ 20개 사전 캐싱 (Warm-up).
+  - 캐시 히트 시 50ms 이내 응답, 미스 시 RAG 파이프라인 실행.
 
 ## 5. 개발 가이드 (For Antigravity & Team)
 - **Branch 전략**: `main` (배포), `deploy/ 사람명` (개발용 브랜치).
@@ -60,16 +73,26 @@
 project3/
 ├── backend/                # FastAPI 메인 백엔드
 │   ├── app/
-│   │   ├── api/            # 출결(attendance.py), 인증(auth.py) 엔드포인트
+│   │   ├── api/            # API 엔드포인트
+│   │   │   ├── auth.py         # 인증 API
+│   │   │   ├── attendance.py   # 출결 API
+│   │   │   └── chat.py         # FAQ 챗봇 API (신규)
 │   │   ├── core/           # 보안(JWT), DB 연결 설정
+│   │   ├── data/           # 정적 데이터 (신규)
+│   │   │   └── faq_data.json   # FAQ 데이터 (20개 질문)
 │   │   ├── models/         # SQLAlchemy 모델 (Users, Students, LoginLogs 등)
 │   │   ├── schemas/        # Pydantic 데이터 검증 모델
-│   │   └── services/       # 비즈니스 로직 (AttendanceService, AuthService 등)
-│   │       └── text_review/ # 기존 문자 리뷰 로직 및 모델
+│   │   │   └── chat.py         # 챗봇 스키마 (신규)
+│   │   └── services/       # 비즈니스 로직
+│   │       ├── chat_cache.py   # FAQ 캐싱 모듈 (신규)
+│   │       ├── chat_service.py # FAQ 챗봇 서비스 (신규)
+│   │       ├── faq_loader.py   # FAQ ChromaDB 로더 (신규)
+│   │       └── text_review/    # 기존 문자 리뷰 로직 및 모델
 │   ├── tests/              # API 테스트 코드
-│   ├── .env                # DB_URL, JWT_SECRET 등 환경변수
+│   ├── .env                # DB_URL, JWT_SECRET, OLLAMA_URL 등 환경변수
 │   ├── main.py             # 서버 실행 엔트리 포인트
 │   └── requirements.txt
 ├── frontend/               # React 프로젝트 (Vite)
 ├── doc/                    # PRD, TRD 및 기술 문서
+│   └── FAQ_CHATBOT_CACHING.md  # FAQ 챗봇 캐싱 최적화 문서 (신규)
 └── .gitignore

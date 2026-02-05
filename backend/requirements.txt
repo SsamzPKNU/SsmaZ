@@ -19,3 +19,7 @@ slowapi==0.1.9
 
 # PDF 생성
 reportlab==4.0.0
+
+# RAG 챗봇 관련
+chromadb==0.4.22
+sentence-transformers==2.2.2

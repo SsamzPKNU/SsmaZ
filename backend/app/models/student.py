@@ -14,7 +14,7 @@ class StudentStatus(str, enum.Enum):
     """학생 상태"""
     ENROLLED = "재원"
     PAUSED = "휴원"
-    GRADUATED = "졸업"
+    WITHDRAWN = "퇴원"
 
 
 class Student(Base):
@@ -27,7 +27,7 @@ class Student(Base):
     - class_id: 반 ID (nullable)
     - name: 학생 이름
     - parent_phone: 학부모 전화번호 (알림 발송용)
-    - status: 학생 상태 (재원, 휴원, 졸업)
+    - status: 학생 상태 (재원, 휴원, 퇴원)
     - regdate: 생성 시간
     """
     __tablename__ = "Students"
@@ -68,7 +68,7 @@ class Student(Base):
         Enum(StudentStatus, values_callable=lambda x: [e.value for e in x]),
         default=StudentStatus.ENROLLED,
         nullable=True,
-        comment="학생 상태 (재원, 휴원, 졸업)"
+        comment="학생 상태 (재원, 휴원, 퇴원)"
     )
 
     regdate = Column(

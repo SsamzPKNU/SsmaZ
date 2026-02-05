@@ -14,9 +14,16 @@ from app.schemas.teacher_app import (
     TeacherStudentResponse,
     StudentDetailResponse,
     AttendanceRecordResponse,
-    AttendanceCreateRequest
+    AttendanceCreateRequest,
+    AttendanceUpdateRequest,
+    ClassAttendanceResponse,
+    ClassAttendanceBatchRequest,
+    ClassAttendanceBatchResponse,
+    ClassAttendanceSummaryResponse
 )
 from app.services.teacher_app_service import TeacherAppService
+from app.schemas.support import NoticeResponse, NoticeListResponse
+from app.services.support_service import NoticeService
 from typing import List, Optional
 from datetime import date
 
@@ -265,15 +272,15 @@ async def get_all_my_students(
 ):
     """
     내가 담당하는 모든 학생 목록
-    
+
     선생님이 담당하는 모든 반의 학생들을 조회합니다.
-    
+
     Headers:
         Authorization: Bearer {access_token}
-    
+
     Returns:
         List[TeacherStudentResponse]: 전체 학생 목록
-    
+
     Raises:
         401: 인증되지 않은 사용자
     """
@@ -282,5 +289,281 @@ async def get_all_my_students(
         user_id=current_user.user_id,
         academy_id=current_user.academy_id
     )
-    
+
     return students
+
+
+# ==================== 반 출결 관리 API ====================
+
+@router.get("/classes/{class_id}/attendance", response_model=ClassAttendanceResponse)
+async def get_class_attendance(
+    class_id: int,
+    target_date: Optional[date] = Query(None, description="조회 날짜 (미입력 시 오늘)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    반 출결 현황 조회
+
+    담당하는 반의 특정일 출결 현황을 조회합니다.
+    출결 기록이 없는 학생도 포함됩니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Query Parameters:
+        - target_date: 조회 날짜 (미입력 시 오늘)
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ClassAttendanceResponse: 반 출결 현황
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 해당 반의 담당 선생님이 아닌 경우
+        404: 반을 찾을 수 없음
+    """
+    result = TeacherAppService.get_class_attendance_status(
+        db=db,
+        class_id=class_id,
+        user_id=current_user.user_id,
+        academy_id=current_user.academy_id,
+        target_date=target_date
+    )
+
+    return result
+
+
+@router.post(
+    "/classes/{class_id}/attendance/batch",
+    response_model=ClassAttendanceBatchResponse,
+    status_code=status.HTTP_201_CREATED
+)
+async def batch_check_class_attendance(
+    class_id: int,
+    batch_data: ClassAttendanceBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    반 출결 일괄 처리
+
+    담당하는 반의 학생들 출결을 일괄 처리합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Request Body:
+        - date: 출결 날짜 (미입력 시 오늘)
+        - items: 출결 항목 목록 [{student_id, status}]
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ClassAttendanceBatchResponse: 일괄 처리 결과
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 해당 반의 담당 선생님이 아닌 경우
+    """
+    result = TeacherAppService.batch_check_class_attendance(
+        db=db,
+        class_id=class_id,
+        user_id=current_user.user_id,
+        academy_id=current_user.academy_id,
+        items=batch_data.items,
+        target_date=batch_data.date
+    )
+
+    return result
+
+
+@router.patch(
+    "/students/{student_id}/attendance/{att_id}",
+    response_model=AttendanceRecordResponse
+)
+async def update_student_attendance(
+    student_id: int,
+    att_id: int,
+    update_data: AttendanceUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    학생 출결 수정
+
+    담당 학생의 출결 기록을 수정합니다.
+
+    Path Parameters:
+        - student_id: 학생 ID
+        - att_id: 출결 기록 ID
+
+    Request Body:
+        - status: 출결 상태 (present, late, absent, excused)
+        - check_in_time: 등원 시간 (HH:MM)
+        - check_out_time: 하원 시간 (HH:MM)
+        - memo: 메모
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        AttendanceRecordResponse: 수정된 출결 기록
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 해당 학생의 담당 선생님이 아닌 경우
+        404: 출결 기록을 찾을 수 없음
+    """
+    result = TeacherAppService.update_student_attendance(
+        db=db,
+        student_id=student_id,
+        att_id=att_id,
+        user_id=current_user.user_id,
+        academy_id=current_user.academy_id,
+        update_data=update_data
+    )
+
+    return result
+
+
+@router.get("/classes/{class_id}/attendance/summary", response_model=ClassAttendanceSummaryResponse)
+async def get_class_attendance_summary(
+    class_id: int,
+    start_date: Optional[date] = Query(None, description="시작일 (미입력 시 30일 전)"),
+    end_date: Optional[date] = Query(None, description="종료일 (미입력 시 오늘)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    기간별 반 출결 통계
+
+    담당하는 반의 기간별 출결 통계를 조회합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Query Parameters:
+        - start_date: 시작일 (미입력 시 30일 전)
+        - end_date: 종료일 (미입력 시 오늘)
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ClassAttendanceSummaryResponse: 반 출결 통계
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 해당 반의 담당 선생님이 아닌 경우
+        404: 반을 찾을 수 없음
+    """
+    result = TeacherAppService.get_class_attendance_summary(
+        db=db,
+        class_id=class_id,
+        user_id=current_user.user_id,
+        academy_id=current_user.academy_id,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    return result
+
+
+# ==================== 공지사항 API ====================
+
+@router.get("/notices", response_model=NoticeListResponse)
+async def get_teacher_notices(
+    skip: int = Query(0, ge=0, description="건너뛸 항목 수"),
+    limit: int = Query(20, ge=1, le=100, description="조회할 항목 수"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    선생님용 공지사항 목록 조회
+
+    선생님 대상(TEACHER) 및 전체 대상(ALL) 공지사항을 조회합니다.
+    고정 공지가 먼저 표시되고, 최신순으로 정렬됩니다.
+
+    Query Parameters:
+        - skip: 건너뛸 항목 수 (기본: 0)
+        - limit: 조회할 항목 수 (기본: 20, 최대: 100)
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        NoticeListResponse: 공지사항 목록 및 총 개수
+
+    Raises:
+        401: 인증되지 않은 사용자
+    """
+    # TEACHER + ALL 대상 공지만 조회
+    targets = ["TEACHER", "ALL"]
+    notices, total = NoticeService.get_notices_for_targets(
+        db=db,
+        academy_id=current_user.academy_id,
+        targets=targets,
+        skip=skip,
+        limit=limit
+    )
+
+    return NoticeListResponse(
+        total=total,
+        notices=[NoticeService.to_response(n) for n in notices]
+    )
+
+
+@router.get("/notices/{notice_id}", response_model=NoticeResponse)
+async def get_teacher_notice_detail(
+    notice_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    선생님용 공지사항 상세 조회
+
+    공지사항 상세 정보를 조회합니다.
+    조회 시 조회수가 1 증가합니다.
+    선생님 대상(TEACHER) 또는 전체 대상(ALL) 공지만 조회 가능합니다.
+
+    Path Parameters:
+        - notice_id: 공지사항 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        NoticeResponse: 공지사항 상세 정보
+
+    Raises:
+        401: 인증되지 않은 사용자
+        403: 접근 권한이 없는 공지사항
+        404: 공지사항을 찾을 수 없음
+    """
+    notice = NoticeService.get_notice(
+        db=db,
+        notice_id=notice_id,
+        academy_id=current_user.academy_id,
+        increment_view=True
+    )
+
+    if not notice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="공지사항을 찾을 수 없습니다"
+        )
+
+    # TEACHER 또는 ALL 대상이 아닌 경우 접근 거부
+    allowed_targets = ["TEACHER", "ALL"]
+    notice_target = notice.target.value if notice.target else "ALL"
+    if notice_target not in allowed_targets:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="이 공지사항에 대한 접근 권한이 없습니다"
+        )
+
+    return NoticeService.to_response(notice)

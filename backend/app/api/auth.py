@@ -74,6 +74,7 @@ async def get_current_user(
     
     # 2. Bearer 토큰 헤더에서 토큰 확인 (폴백)
     elif bearer_token:
+        print("bearer_token", bearer_token)
         token = bearer_token
     
     # 3. 토큰이 없는 경우

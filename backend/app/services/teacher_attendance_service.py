@@ -346,3 +346,145 @@ class TeacherAttendanceService:
         db.refresh(attendance)
 
         return attendance
+
+    # ==================== 관리자용 메서드 ====================
+
+    @staticmethod
+    def get_attendance_list_by_period(
+        db: Session,
+        academy_id: int,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        teacher_id: Optional[int] = None,
+        is_approved: Optional[bool] = None,
+        page: int = 1,
+        limit: int = 20
+    ) -> Tuple[List[dict], int]:
+        """
+        기간별 선생님 출퇴근 조회 (관리자용)
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID
+            start_date: 조회 시작일
+            end_date: 조회 종료일
+            teacher_id: 선생님 ID 필터 (선택)
+            is_approved: 승인 여부 필터 (선택)
+            page: 페이지 번호
+            limit: 페이지당 항목 수
+
+        Returns:
+            Tuple[List[dict], int]: (출퇴근 기록 목록, 전체 개수)
+        """
+        query = db.query(TeacherAttendance, Teacher).join(
+            Teacher, TeacherAttendance.teacher_id == Teacher.teacher_id
+        ).filter(Teacher.academy_id == academy_id)
+
+        # 기간 필터
+        if start_date:
+            query = query.filter(TeacherAttendance.date >= start_date)
+        if end_date:
+            query = query.filter(TeacherAttendance.date <= end_date)
+
+        # 선생님 필터
+        if teacher_id:
+            query = query.filter(TeacherAttendance.teacher_id == teacher_id)
+
+        # 승인 여부 필터
+        if is_approved is not None:
+            query = query.filter(TeacherAttendance.is_approved == is_approved)
+
+        # 전체 개수
+        total = query.count()
+
+        # 페이지네이션 (최신순)
+        offset = (page - 1) * limit
+        records = query.order_by(
+            TeacherAttendance.date.desc(),
+            Teacher.name
+        ).offset(offset).limit(limit).all()
+
+        # 결과 변환
+        result = []
+        for attendance, teacher in records:
+            result.append({
+                "id": attendance.id,
+                "teacher_id": teacher.teacher_id,
+                "teacher_name": teacher.name,
+                "date": attendance.date,
+                "check_in_time": attendance.check_in_time,
+                "check_out_time": attendance.check_out_time,
+                "worked_minutes": attendance.worked_minutes,
+                "is_approved": attendance.is_approved
+            })
+
+        return result, total
+
+    @staticmethod
+    def admin_update_attendance(
+        db: Session,
+        attendance_id: int,
+        academy_id: int,
+        check_in_time: Optional[datetime] = None,
+        check_out_time: Optional[datetime] = None,
+        is_approved: Optional[bool] = None
+    ) -> TeacherAttendance:
+        """
+        관리자 권한 선생님 출퇴근 수정
+
+        Args:
+            db: 데이터베이스 세션
+            attendance_id: 출퇴근 기록 ID
+            academy_id: 학원 ID (권한 검증용)
+            check_in_time: 출근 시간 (선택)
+            check_out_time: 퇴근 시간 (선택)
+            is_approved: 승인 여부 (선택)
+
+        Returns:
+            TeacherAttendance: 수정된 출퇴근 기록
+
+        Raises:
+            HTTPException: 출퇴근 기록을 찾을 수 없거나 권한이 없는 경우
+        """
+        # 출퇴근 기록 조회
+        attendance = db.query(TeacherAttendance).filter(
+            TeacherAttendance.id == attendance_id
+        ).first()
+
+        if not attendance:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="출퇴근 기록을 찾을 수 없습니다"
+            )
+
+        # 선생님의 학원 소속 확인
+        teacher = db.query(Teacher).filter(
+            and_(
+                Teacher.teacher_id == attendance.teacher_id,
+                Teacher.academy_id == academy_id
+            )
+        ).first()
+
+        if not teacher:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="해당 출퇴근 기록에 대한 권한이 없습니다"
+            )
+
+        # 필드 업데이트
+        if check_in_time is not None:
+            attendance.check_in_time = check_in_time
+        if check_out_time is not None:
+            attendance.check_out_time = check_out_time
+        if is_approved is not None:
+            attendance.is_approved = is_approved
+
+        # 근무시간 재계산
+        if attendance.check_in_time and attendance.check_out_time:
+            time_diff = attendance.check_out_time - attendance.check_in_time
+            attendance.worked_minutes = int(time_diff.total_seconds() / 60)
+
+        db.commit()
+        db.refresh(attendance)
+
+        return attendance

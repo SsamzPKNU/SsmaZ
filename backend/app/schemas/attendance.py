@@ -1,13 +1,29 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
-from app.models.attendance import AttendanceStatus, AttendanceMethod
+from enum import Enum
 from app.schemas.student import StudentResponse
+
+
+# 스키마용 Enum (SQLAlchemy 모델 Enum과 분리하여 RecursionError 방지)
+class AttendanceStatusSchema(str, Enum):
+    """출결 상태 (스키마용)"""
+    PRESENT = "출석"
+    LATE = "지각"
+    ABSENT = "결석"
+    EARLY_LEAVE = "조퇴"
+
+
+class AttendanceMethodSchema(str, Enum):
+    """출결 방식 (스키마용)"""
+    SELF = "SELF"
+    MANUAL = "MANUAL"
+
 
 class AttendanceBase(BaseModel):
     student_id: int
-    status: AttendanceStatus
-    method: Optional[AttendanceMethod] = AttendanceMethod.MANUAL
+    status: AttendanceStatusSchema
+    method: Optional[AttendanceMethodSchema] = AttendanceMethodSchema.MANUAL
 
 class AttendanceCheckRequest(AttendanceBase):
     """
@@ -56,7 +72,7 @@ class TodayAttendanceResponse(BaseModel):
 class AttendanceBatchItem(BaseModel):
     """출결 일괄 처리 항목"""
     student_id: int
-    status: AttendanceStatus
+    status: AttendanceStatusSchema
 
 
 class AttendanceBatchRequest(BaseModel):
@@ -70,3 +86,48 @@ class AttendanceBatchResponse(BaseModel):
     success_count: int
     fail_count: int
     failed_items: List[dict] = []  # [{student_id, error}]
+
+
+# ==================== 관리자용 스키마 ====================
+
+class AdminStudentAttendanceItem(BaseModel):
+    """관리자용 학생 출결 조회 항목"""
+    att_id: int
+    student_id: int
+    student_name: str
+    class_id: Optional[int] = None
+    class_name: Optional[str] = None
+    attendance_date: date
+    status: str
+    check_in_at: Optional[datetime] = None
+    check_out_at: Optional[datetime] = None
+    memo: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminStudentAttendanceListResponse(BaseModel):
+    """관리자용 학생 출결 목록 응답"""
+    records: List[AdminStudentAttendanceItem]
+    total: int
+    page: int
+    limit: int
+    stats: AttendanceStats
+
+
+class AdminStudentAttendanceUpdate(BaseModel):
+    """관리자용 학생 출결 수정 요청"""
+    status: Optional[AttendanceStatusSchema] = None
+    check_in_at: Optional[datetime] = None
+    check_out_at: Optional[datetime] = None
+    memo: Optional[str] = None
+
+
+class AdminStudentAttendanceCreate(BaseModel):
+    """관리자용 학생 출결 생성 요청"""
+    student_id: int
+    attendance_date: date
+    status: AttendanceStatusSchema
+    check_in_at: Optional[datetime] = None
+    memo: Optional[str] = None

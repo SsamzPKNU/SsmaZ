@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func, case
 from datetime import datetime, date
 from app.models.attendance import Attendance, AttendanceStatus, AttendanceMethod
 from app.models.student import Student
+from app.models.class_model import Class
 from app.schemas.attendance import AttendanceResponse, AttendanceStats, AttendanceBatchItem
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 
 def send_sms_notification(parent_phone: str, message: str) -> bool:
     """
@@ -221,3 +222,248 @@ class AttendanceService:
             "fail_count": len(failed_items),
             "failed_items": failed_items
         }
+
+    # ==================== 관리자용 메서드 ====================
+
+    @staticmethod
+    def get_student_attendance_list(
+        db: Session,
+        academy_id: int,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        class_id: Optional[int] = None,
+        student_id: Optional[int] = None,
+        status: Optional[AttendanceStatus] = None,
+        page: int = 1,
+        limit: int = 20
+    ) -> Tuple[List[Dict[str, Any]], int, AttendanceStats]:
+        """
+        기간별 학생 출결 조회 (관리자용)
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID
+            start_date: 조회 시작일
+            end_date: 조회 종료일
+            class_id: 반 ID 필터 (선택)
+            student_id: 학생 ID 필터 (선택)
+            status: 출결 상태 필터 (선택)
+            page: 페이지 번호
+            limit: 페이지당 항목 수
+
+        Returns:
+            Tuple[List[Dict], int, AttendanceStats]: (출결 기록 목록, 전체 개수, 통계)
+        """
+        # 기본 쿼리 (학생/반 정보 JOIN)
+        query = db.query(
+            Attendance,
+            Student.name.label("student_name"),
+            Student.class_id,
+            Class.class_name
+        ).join(
+            Student, Attendance.student_id == Student.student_id
+        ).outerjoin(
+            Class, Student.class_id == Class.class_id
+        ).filter(
+            Attendance.academy_id == academy_id
+        )
+
+        # 기간 필터
+        if start_date:
+            query = query.filter(Attendance.attendance_date >= start_date)
+        if end_date:
+            query = query.filter(Attendance.attendance_date <= end_date)
+
+        # 반 필터
+        if class_id:
+            query = query.filter(Student.class_id == class_id)
+
+        # 학생 필터
+        if student_id:
+            query = query.filter(Attendance.student_id == student_id)
+
+        # 상태 필터
+        if status:
+            query = query.filter(Attendance.status == status)
+
+        # 전체 개수
+        total = query.count()
+
+        # 통계 계산 (SQLAlchemy case 문 사용 - DB 호환성)
+        stats_query = db.query(
+            func.count().label("total"),
+            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+            func.sum(case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label("late"),
+            func.sum(case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label("absent"),
+            func.sum(case((Attendance.status == AttendanceStatus.EARLY_LEAVE, 1), else_=0)).label("early")
+        ).select_from(Attendance).join(
+            Student, Attendance.student_id == Student.student_id
+        ).filter(Attendance.academy_id == academy_id)
+
+        if start_date:
+            stats_query = stats_query.filter(Attendance.attendance_date >= start_date)
+        if end_date:
+            stats_query = stats_query.filter(Attendance.attendance_date <= end_date)
+        if class_id:
+            stats_query = stats_query.filter(Student.class_id == class_id)
+        if student_id:
+            stats_query = stats_query.filter(Attendance.student_id == student_id)
+        if status:
+            stats_query = stats_query.filter(Attendance.status == status)
+
+        stats_result = stats_query.first()
+        stats = AttendanceStats(
+            total=stats_result.total or 0,
+            present=int(stats_result.present or 0),
+            late=int(stats_result.late or 0),
+            absent=int(stats_result.absent or 0),
+            early=int(stats_result.early or 0)
+        )
+
+        # 페이지네이션 (최신순)
+        offset = (page - 1) * limit
+        records = query.order_by(
+            Attendance.attendance_date.desc(),
+            Student.name
+        ).offset(offset).limit(limit).all()
+
+        # 결과 변환
+        result = []
+        for att, student_name, s_class_id, class_name in records:
+            result.append({
+                "att_id": att.att_id,
+                "student_id": att.student_id,
+                "student_name": student_name,
+                "class_id": s_class_id,
+                "class_name": class_name,
+                "attendance_date": att.attendance_date,
+                "status": att.status.value,
+                "check_in_at": att.check_in_at,
+                "check_out_at": att.check_out_at,
+                "memo": att.memo
+            })
+
+        return result, total, stats
+
+    @staticmethod
+    def admin_create_attendance(
+        db: Session,
+        academy_id: int,
+        student_id: int,
+        attendance_date: date,
+        status: AttendanceStatus,
+        check_in_at: Optional[datetime] = None,
+        memo: Optional[str] = None
+    ) -> Attendance:
+        """
+        관리자 권한 학생 출결 생성
+
+        Args:
+            db: 데이터베이스 세션
+            academy_id: 학원 ID
+            student_id: 학생 ID
+            attendance_date: 출결 날짜
+            status: 출결 상태
+            check_in_at: 등원 시간 (선택)
+            memo: 메모 (선택)
+
+        Returns:
+            Attendance: 생성된 출결 기록
+
+        Raises:
+            ValueError: 학생을 찾을 수 없거나 중복 기록인 경우
+        """
+        # 학생 확인 (해당 학원 소속인지)
+        student = db.query(Student).filter(
+            and_(
+                Student.student_id == student_id,
+                Student.academy_id == academy_id
+            )
+        ).first()
+
+        if not student:
+            raise ValueError("해당 학원에 소속된 학생을 찾을 수 없습니다")
+
+        # 중복 체크
+        existing = db.query(Attendance).filter(
+            and_(
+                Attendance.student_id == student_id,
+                Attendance.attendance_date == attendance_date
+            )
+        ).first()
+
+        if existing:
+            raise ValueError("해당 날짜에 이미 출결 기록이 존재합니다")
+
+        # 출결 기록 생성
+        new_record = Attendance(
+            student_id=student_id,
+            academy_id=academy_id,
+            attendance_date=attendance_date,
+            status=status,
+            check_in_at=check_in_at or (datetime.now() if status != AttendanceStatus.ABSENT else None),
+            method=AttendanceMethod.MANUAL,
+            is_notified=False,
+            memo=memo
+        )
+
+        db.add(new_record)
+        db.commit()
+        db.refresh(new_record)
+
+        return new_record
+
+    @staticmethod
+    def admin_update_attendance(
+        db: Session,
+        att_id: int,
+        academy_id: int,
+        status: Optional[AttendanceStatus] = None,
+        check_in_at: Optional[datetime] = None,
+        check_out_at: Optional[datetime] = None,
+        memo: Optional[str] = None
+    ) -> Attendance:
+        """
+        관리자 권한 학생 출결 수정
+
+        Args:
+            db: 데이터베이스 세션
+            att_id: 출결 기록 ID
+            academy_id: 학원 ID (권한 검증용)
+            status: 출결 상태 (선택)
+            check_in_at: 등원 시간 (선택)
+            check_out_at: 하원 시간 (선택)
+            memo: 메모 (선택)
+
+        Returns:
+            Attendance: 수정된 출결 기록
+
+        Raises:
+            ValueError: 출결 기록을 찾을 수 없거나 권한이 없는 경우
+        """
+        # 출결 기록 조회
+        attendance = db.query(Attendance).filter(
+            Attendance.att_id == att_id
+        ).first()
+
+        if not attendance:
+            raise ValueError("출결 기록을 찾을 수 없습니다")
+
+        # 학원 소속 확인
+        if attendance.academy_id != academy_id:
+            raise ValueError("해당 출결 기록에 대한 권한이 없습니다")
+
+        # 필드 업데이트
+        if status is not None:
+            attendance.status = status
+        if check_in_at is not None:
+            attendance.check_in_at = check_in_at
+        if check_out_at is not None:
+            attendance.check_out_at = check_out_at
+        if memo is not None:
+            attendance.memo = memo
+
+        db.commit()
+        db.refresh(attendance)
+
+        return attendance

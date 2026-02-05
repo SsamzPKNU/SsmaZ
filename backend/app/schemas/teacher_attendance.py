@@ -140,3 +140,50 @@ class AdminAttendanceListResponse(BaseModel):
 class ApproveRequest(BaseModel):
     """승인 요청 스키마"""
     pass
+
+
+# ==================== 관리자용 기간별 조회/수정 스키마 ====================
+
+class AdminTeacherAttendancePeriodResponse(BaseModel):
+    """관리자용 기간별 선생님 출퇴근 조회 응답"""
+    records: List[AdminAttendanceResponse]
+    total: int
+    page: int
+    limit: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "records": [
+                    {
+                        "id": 1,
+                        "teacher_id": 5,
+                        "teacher_name": "김선생",
+                        "work_date": "2026-01-27",
+                        "check_in_time": "2026-01-27T09:00:00",
+                        "check_out_time": "2026-01-27T18:00:00",
+                        "worked_minutes": 540,
+                        "is_approved": True
+                    }
+                ],
+                "total": 50,
+                "page": 1,
+                "limit": 20
+            }
+        }
+
+
+class AdminTeacherAttendanceUpdate(BaseModel):
+    """관리자용 선생님 출퇴근 수정 요청"""
+    check_in_time: Optional[datetime] = None
+    check_out_time: Optional[datetime] = None
+    is_approved: Optional[bool] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "check_in_time": "2026-01-27T09:00:00",
+                "check_out_time": "2026-01-27T18:00:00",
+                "is_approved": True
+            }
+        }

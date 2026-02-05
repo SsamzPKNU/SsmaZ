@@ -25,7 +25,7 @@ async def get_students(
     page: int = Query(1, ge=1, description="페이지 번호 (1부터 시작)"),
     limit: int = Query(20, ge=1, le=100, description="페이지당 항목 수 (최대: 100)"),
     search: Optional[str] = Query(None, description="검색어 (이름, 전화번호)"),
-    status: Optional[str] = Query(None, description="상태 필터 (enrolled, paused, graduated)"),
+    status: Optional[str] = Query(None, description="상태 필터 (enrolled, paused, withdrawn)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -39,7 +39,7 @@ async def get_students(
         - page: 페이지 번호 (기본: 1)
         - limit: 페이지당 항목 수 (기본: 20, 최대: 100)
         - search: 검색어 (이름, 전화번호, 학부모 전화번호)
-        - status: 상태 필터 (enrolled, paused, graduated)
+        - status: 상태 필터 (enrolled, paused, withdrawn)
     
     Headers:
         Authorization: Bearer {access_token}
@@ -196,7 +196,7 @@ async def update_student(
         - phone: 학생 전화번호 (선택)
         - parent_phone: 학부모 전화번호 (선택)
         - enrollment_date: 등록일 (선택)
-        - status: 학생 상태 (선택: enrolled, paused, graduated)
+        - status: 학생 상태 (선택: enrolled, paused, withdrawn)
     
     Headers:
         Authorization: Bearer {access_token}
