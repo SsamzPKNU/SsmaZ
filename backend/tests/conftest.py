@@ -26,6 +26,7 @@ from app.models.student import Student, StudentStatus
 from app.models.class_model import Class
 from app.models.attendance import Attendance, AttendanceStatus, AttendanceMethod
 from app.models.teacher_attendance import TeacherAttendance
+from app.models.student_contact import StudentContact
 from app.core.security import hash_password
 
 # main.py에서 app 가져오기
@@ -418,6 +419,26 @@ def student_with_class(db, student_user, test_class) -> Student:
     db.commit()
     db.refresh(student)
     return student
+
+
+@pytest.fixture
+def student_contacts(db, students) -> list:
+    """테스트용 학생 연락처 픽스처"""
+    contacts = []
+    for i, student in enumerate(students):
+        contact = StudentContact(
+            student_id=student.student_id,
+            phone=f"010-{1000 + i}-0001",
+            label="엄마",
+            priority=1,
+            is_active=True
+        )
+        db.add(contact)
+        contacts.append(contact)
+    db.commit()
+    for c in contacts:
+        db.refresh(c)
+    return contacts
 
 
 @pytest.fixture

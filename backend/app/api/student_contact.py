@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.api.auth import get_current_user
+from app.api.deps import get_admin_or_teacher_user
 from app.models.user import User
 from app.schemas.student_contact import (
     StudentContactCreate,
@@ -32,7 +32,7 @@ async def create_contact(
     student_id: int,
     contact_data: StudentContactCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_admin_or_teacher_user)
 ):
     """
     학생 연락처 추가
@@ -60,7 +60,7 @@ async def create_contact(
 async def get_contacts(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_admin_or_teacher_user)
 ):
     """
     학생의 연락처 목록 조회 (priority 순 정렬)
@@ -87,7 +87,7 @@ async def update_contact(
     contact_id: int,
     contact_data: StudentContactUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_admin_or_teacher_user)
 ):
     """
     연락처 정보 수정
@@ -112,7 +112,7 @@ async def update_contact(
 async def delete_contact(
     contact_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_admin_or_teacher_user)
 ):
     """
     연락처 삭제

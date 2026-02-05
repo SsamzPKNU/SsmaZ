@@ -77,3 +77,37 @@ async def get_student_user(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="학생 또는 학부모 권한이 필요합니다"
     )
+
+
+async def get_admin_or_teacher_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    관리자 또는 선생님 권한 체크 의존성 함수
+
+    현재 로그인한 사용자가 ADMIN 또는 TEACHER 권한을 가지고 있는지 확인합니다.
+
+    Args:
+        current_user: 현재 로그인한 사용자 (get_current_user 의존성)
+
+    Returns:
+        ADMIN 또는 TEACHER 권한을 가진 사용자 객체
+
+    Raises:
+        403 Forbidden: ADMIN/TEACHER 권한이 없는 경우
+
+    사용 예시:
+        @router.get("/students/{student_id}/contacts")
+        async def get_contacts(
+            admin_or_teacher: User = Depends(get_admin_or_teacher_user)
+        ):
+            # admin_or_teacher는 ADMIN 또는 TEACHER 권한이 보장됨
+            return {"message": "연락처 조회"}
+    """
+    if current_user.user_role not in [UserRole.ADMIN, UserRole.TEACHER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 또는 선생님 권한이 필요합니다. 현재 권한: " + current_user.user_role.value
+        )
+
+    return current_user
