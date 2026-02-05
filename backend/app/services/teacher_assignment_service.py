@@ -47,7 +47,7 @@ class TeacherAssignmentService:
         query = db.query(Assignment).filter(
             and_(
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         )
 
