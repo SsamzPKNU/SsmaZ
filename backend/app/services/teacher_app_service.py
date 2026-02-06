@@ -248,9 +248,9 @@ class TeacherAppService:
             result.append(TeacherStudentResponse(
                 id=student.student_id,
                 name=student.name,
-                grade=student.grade,
-                school=student.school,
-                phone=student.phone,
+                grade=getattr(student, 'grade', None),
+                school=getattr(student, 'school', None),
+                phone=getattr(student, 'phone', None),
                 parent_phone=student.parent_phone,
                 class_name=class_obj.name
             ))
@@ -343,11 +343,11 @@ class TeacherAppService:
         return StudentDetailResponse(
             id=student.student_id,
             name=student.name,
-            grade=student.grade,
-            school=student.school,
-            phone=student.phone,
+            grade=getattr(student, 'grade', None),
+            school=getattr(student, 'school', None),
+            phone=getattr(student, 'phone', None),
             parent_phone=student.parent_phone,
-            enrollment_date=student.enrollment_date,
+            enrollment_date=getattr(student, 'enrollment_date', None),
             status=student.status.value,
             class_id=student.class_id,
             class_name=class_name,
@@ -547,9 +547,9 @@ class TeacherAppService:
             result.append(TeacherStudentResponse(
                 id=student.student_id,
                 name=student.name,
-                grade=student.grade,
-                school=student.school,
-                phone=student.phone,
+                grade=getattr(student, 'grade', None),
+                school=getattr(student, 'school', None),
+                phone=getattr(student, 'phone', None),
                 parent_phone=student.parent_phone,
                 class_name=class_name
             ))
