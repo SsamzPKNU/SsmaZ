@@ -213,3 +213,26 @@ class GradeSubmissionResponse(BaseModel):
     total_score: int
     max_score: int
     graded_at: datetime
+
+
+# ========== 간편 채점 스키마 ==========
+
+class QuickGradeItem(BaseModel):
+    """간편 채점 항목"""
+    student_id: int
+    score: int = Field(..., ge=0, description="획득 점수")
+    max_score: int = Field(default=100, ge=1, description="최대 점수")
+    wrong_questions: Optional[str] = Field(None, description="틀린 문항 번호")
+    memo: Optional[str] = Field(None, description="메모")
+
+
+class QuickGradeRequest(BaseModel):
+    """간편 채점 요청"""
+    grades: List[QuickGradeItem] = Field(..., min_length=1, description="성적 배열")
+
+
+class QuickGradeResponse(BaseModel):
+    """간편 채점 응답"""
+    success: bool
+    updated_count: int
+    message: str

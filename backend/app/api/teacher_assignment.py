@@ -16,7 +16,8 @@ from app.schemas.teacher_assignment import (
     AssignmentCreateRequest, AssignmentUpdateRequest,
     AssignmentListResponse, AssignmentDetailResponse,
     GradingListResponse, SubmissionListResponse, StudentSubmissionDetail,
-    GradeSubmissionRequest, GradeSubmissionResponse
+    GradeSubmissionRequest, GradeSubmissionResponse,
+    QuickGradeRequest, QuickGradeResponse
 )
 
 
@@ -49,7 +50,6 @@ async def get_assignments(
     items, stats = TeacherAssignmentService.get_assignments(
         db=db,
         teacher_id=teacher_id,
-        user_id=current_user.user_id,
         academy_id=current_user.academy_id,
         class_id=class_id,
         status_filter=status_filter
@@ -73,10 +73,12 @@ async def get_assignment_detail(
 
     과제의 상세 정보와 문제 목록을 조회합니다.
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.get_assignment_detail(
         db=db,
         assignment_id=assignment_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id
     )
 
@@ -100,9 +102,11 @@ async def create_assignment(
     - assignment_type: 과제 유형 (NORMAL, CLINIC)
     - questions: 문제 목록
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.create_assignment(
         db=db,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id,
         data=data
     )
@@ -120,10 +124,12 @@ async def update_assignment(
 
     과제의 기본 정보를 수정합니다.
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.update_assignment(
         db=db,
         assignment_id=assignment_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id,
         data=data
     )
@@ -140,10 +146,12 @@ async def delete_assignment(
 
     과제와 관련 문제를 삭제합니다.
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     TeacherAssignmentService.delete_assignment(
         db=db,
         assignment_id=assignment_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id
     )
 
@@ -165,7 +173,6 @@ async def get_grading_list(
     items, total_pending = TeacherAssignmentService.get_grading_list(
         db=db,
         teacher_id=teacher_id,
-        user_id=current_user.user_id,
         academy_id=current_user.academy_id
     )
 
@@ -187,10 +194,12 @@ async def get_assignment_submissions(
 
     특정 과제의 학생별 제출 현황을 조회합니다.
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.get_assignment_submissions(
         db=db,
         assignment_id=assignment_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id
     )
 
@@ -207,11 +216,13 @@ async def get_student_submission(
 
     학생의 제출 내용과 답안을 조회합니다.
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.get_student_submission_detail(
         db=db,
         assignment_id=assignment_id,
         student_id=student_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id
     )
 
@@ -236,11 +247,43 @@ async def grade_submission(
       - is_correct: 정답 여부
     - feedback: 전체 피드백 (선택)
     """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
     return TeacherAssignmentService.grade_submission(
         db=db,
         assignment_id=assignment_id,
         student_id=student_id,
-        user_id=current_user.user_id,
+        teacher_id=teacher_id,
+        academy_id=current_user.academy_id,
+        data=data
+    )
+
+
+@router.post("/grading/{assignment_id}/quick-grade", response_model=QuickGradeResponse)
+async def quick_grade(
+    assignment_id: int,
+    data: QuickGradeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    간편 채점 (총점 직접 입력)
+
+    문항별 채점 없이 총점을 직접 입력하여 채점합니다.
+    Submission이 없는 학생은 자동으로 생성됩니다.
+
+    Request Body:
+    - grades: 성적 배열
+      - student_id: 학생 ID
+      - score: 획득 점수
+      - max_score: 최대 점수 (기본값 100)
+    """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
+    return TeacherAssignmentService.quick_grade(
+        db=db,
+        assignment_id=assignment_id,
+        teacher_id=teacher_id,
         academy_id=current_user.academy_id,
         data=data
     )

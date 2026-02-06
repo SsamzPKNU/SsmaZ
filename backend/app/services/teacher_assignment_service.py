@@ -19,7 +19,8 @@ from app.schemas.teacher_assignment import (
     QuestionResponse,
     GradingListItem, SubmissionListItem, SubmissionListResponse,
     StudentSubmissionDetail, AnswerDetail,
-    GradeSubmissionRequest, GradeSubmissionResponse
+    GradeSubmissionRequest, GradeSubmissionResponse,
+    QuickGradeRequest, QuickGradeResponse
 )
 
 
@@ -32,7 +33,6 @@ class TeacherAssignmentService:
     def get_assignments(
         db: Session,
         teacher_id: int,
-        user_id: int,
         academy_id: int,
         class_id: Optional[int] = None,
         status_filter: Optional[str] = None
@@ -122,7 +122,7 @@ class TeacherAssignmentService:
     def get_assignment_detail(
         db: Session,
         assignment_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int
     ) -> AssignmentDetailResponse:
         """과제 상세 조회"""
@@ -130,7 +130,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -202,7 +202,7 @@ class TeacherAssignmentService:
     @staticmethod
     def create_assignment(
         db: Session,
-        user_id: int,
+        teacher_id: int,
         academy_id: int,
         data: AssignmentCreateRequest
     ) -> AssignmentDetailResponse:
@@ -210,7 +210,7 @@ class TeacherAssignmentService:
         # 과제 생성
         assignment = Assignment(
             academy_id=academy_id,
-            teacher_id=user_id,
+            teacher_id=teacher_id,
             class_id=data.class_id,
             title=data.title,
             description=data.description,
@@ -240,14 +240,14 @@ class TeacherAssignmentService:
         db.refresh(assignment)
 
         return TeacherAssignmentService.get_assignment_detail(
-            db, assignment.assignment_id, user_id, academy_id
+            db, assignment.assignment_id, teacher_id, academy_id
         )
 
     @staticmethod
     def update_assignment(
         db: Session,
         assignment_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int,
         data: AssignmentUpdateRequest
     ) -> AssignmentDetailResponse:
@@ -256,7 +256,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -279,14 +279,14 @@ class TeacherAssignmentService:
         db.refresh(assignment)
 
         return TeacherAssignmentService.get_assignment_detail(
-            db, assignment_id, user_id, academy_id
+            db, assignment_id, teacher_id, academy_id
         )
 
     @staticmethod
     def delete_assignment(
         db: Session,
         assignment_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int
     ) -> bool:
         """과제 삭제"""
@@ -294,7 +294,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -314,7 +314,6 @@ class TeacherAssignmentService:
     def get_grading_list(
         db: Session,
         teacher_id: int,
-        user_id: int,
         academy_id: int
     ) -> tuple[List[GradingListItem], int]:
         """채점 대기 목록 조회"""
@@ -326,7 +325,7 @@ class TeacherAssignmentService:
         assignments = db.query(Assignment).filter(
             and_(
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id,
+                Assignment.teacher_id == teacher_id,
                 Assignment.is_active == True
             )
         ).all()
@@ -369,7 +368,7 @@ class TeacherAssignmentService:
     def get_assignment_submissions(
         db: Session,
         assignment_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int
     ) -> SubmissionListResponse:
         """과제별 제출 현황 조회"""
@@ -377,7 +376,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -445,7 +444,7 @@ class TeacherAssignmentService:
         db: Session,
         assignment_id: int,
         student_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int
     ) -> StudentSubmissionDetail:
         """학생별 제출 상세 조회"""
@@ -453,7 +452,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -530,7 +529,7 @@ class TeacherAssignmentService:
         db: Session,
         assignment_id: int,
         student_id: int,
-        user_id: int,
+        teacher_id: int,
         academy_id: int,
         data: GradeSubmissionRequest
     ) -> GradeSubmissionResponse:
@@ -539,7 +538,7 @@ class TeacherAssignmentService:
             and_(
                 Assignment.assignment_id == assignment_id,
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         ).first()
 
@@ -597,4 +596,80 @@ class TeacherAssignmentService:
             total_score=submission.total_score,
             max_score=max_score,
             graded_at=submission.graded_at
+        )
+
+    @staticmethod
+    def quick_grade(
+        db: Session,
+        assignment_id: int,
+        teacher_id: int,
+        academy_id: int,
+        data: QuickGradeRequest
+    ) -> QuickGradeResponse:
+        """간편 채점 (총점 직접 입력)"""
+        # 과제 검증
+        assignment = db.query(Assignment).filter(
+            and_(
+                Assignment.assignment_id == assignment_id,
+                Assignment.academy_id == academy_id,
+                Assignment.teacher_id == teacher_id
+            )
+        ).first()
+
+        if not assignment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="과제를 찾을 수 없습니다"
+            )
+
+        updated_count = 0
+        now = datetime.now()
+
+        for grade_item in data.grades:
+            # 학생 존재 확인
+            student = db.query(Student).filter(
+                Student.student_id == grade_item.student_id
+            ).first()
+
+            if not student:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"학생을 찾을 수 없습니다 (student_id: {grade_item.student_id})"
+                )
+
+            # 기존 Submission 조회
+            submission = db.query(Submission).filter(
+                and_(
+                    Submission.assignment_id == assignment_id,
+                    Submission.student_id == grade_item.student_id
+                )
+            ).first()
+
+            if submission:
+                # 기존 Submission 업데이트
+                submission.total_score = grade_item.score
+                submission.max_score = grade_item.max_score
+                submission.status = SubmissionStatus.GRADED
+                submission.graded_at = now
+            else:
+                # 새 Submission 생성
+                submission = Submission(
+                    assignment_id=assignment_id,
+                    student_id=grade_item.student_id,
+                    status=SubmissionStatus.GRADED,
+                    total_score=grade_item.score,
+                    max_score=grade_item.max_score,
+                    submitted_at=now,
+                    graded_at=now
+                )
+                db.add(submission)
+
+            updated_count += 1
+
+        db.commit()
+
+        return QuickGradeResponse(
+            success=True,
+            updated_count=updated_count,
+            message=f"{updated_count}명의 성적이 저장되었습니다."
         )
