@@ -22,7 +22,9 @@ from app.schemas.teacher_app import (
     ClassAttendanceSummaryResponse
 )
 from app.services.teacher_app_service import TeacherAppService
+from app.services.teacher_message_service import TeacherMessageService
 from app.schemas.support import NoticeResponse, NoticeListResponse
+from app.schemas.teacher_message import ContactListResponse
 from app.services.support_service import NoticeService
 from typing import List, Optional
 from datetime import date
@@ -567,3 +569,39 @@ async def get_teacher_notice_detail(
         )
 
     return NoticeService.to_response(notice)
+
+
+# ==================== 연락처 API ====================
+
+@router.get("/classes/{class_id}/contacts", response_model=ContactListResponse)
+async def get_class_contacts(
+    class_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    반별 연락처 조회
+
+    해당 반의 학생-학부모 연락처 목록을 조회합니다.
+    StudentContacts에서 가장 우선순위 높은 활성 연락처를 parent_phone으로 사용하며,
+    없으면 Student.parent_phone을 폴백으로 사용합니다.
+
+    Path Parameters:
+        - class_id: 반 ID
+
+    Headers:
+        Authorization: Bearer {access_token}
+
+    Returns:
+        ContactListResponse: 연락처 목록
+    """
+    teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
+
+    items = TeacherMessageService.get_contacts(
+        db=db,
+        teacher_id=teacher_id,
+        academy_id=current_user.academy_id,
+        class_id=class_id
+    )
+
+    return ContactListResponse(items=items, total=len(items))

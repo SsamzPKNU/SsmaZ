@@ -29,6 +29,7 @@ router = APIRouter(
 
 @router.get("/templates", response_model=TemplateListResponse)
 async def get_templates(
+    category: Optional[str] = Query(None, description="카테고리 필터 (출석, 시험, 성적, 과제, 공지, 일반)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -36,13 +37,15 @@ async def get_templates(
     템플릿 목록 조회
 
     내 템플릿 + 학원 공용 템플릿을 조회합니다.
+    category 쿼리 파라미터로 카테고리별 필터링이 가능합니다.
     """
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
     items = TeacherMessageService.get_templates(
         db=db,
         teacher_id=teacher_id,
-        academy_id=current_user.academy_id
+        academy_id=current_user.academy_id,
+        category=category
     )
 
     return TemplateListResponse(items=items, total=len(items))
@@ -92,7 +95,7 @@ async def update_template(
     )
 
 
-@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/templates/{template_id}")
 async def delete_template(
     template_id: int,
     current_user: User = Depends(get_current_user),
@@ -112,6 +115,8 @@ async def delete_template(
         academy_id=current_user.academy_id
     )
 
+    return {"message": "템플릿이 삭제되었습니다"}
+
 
 # ========== 메시지 발송 API ==========
 
@@ -124,12 +129,12 @@ async def send_message(
     """
     메시지 발송
 
-    학생 또는 학부모에게 메시지를 발송합니다.
+    학생의 학부모에게 메시지를 발송합니다.
 
     Request Body:
-    - target_type: 대상 유형 (parents, students, class)
-    - target_ids: 대상 ID 목록 (학생 ID 또는 반 ID)
-    - title: 메시지 제목
+    - class_id: 대상 반 ID
+    - student_ids: 대상 학생 ID 목록
+    - type: 메시지 유형 (normal, urgent, notice)
     - content: 메시지 내용
     - template_id: 사용한 템플릿 ID (선택)
     """
@@ -146,14 +151,17 @@ async def send_message(
 @router.get("/history", response_model=MessageHistoryResponse)
 async def get_message_history(
     page: int = Query(1, ge=1, description="페이지 번호"),
-    page_size: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    limit: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    class_id: Optional[int] = Query(None, description="반 ID 필터"),
+    type: Optional[str] = Query(None, description="메시지 유형 필터 (normal, urgent, notice)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     발송 내역 조회
 
-    학원의 메시지 발송 내역을 조회합니다.
+    메시지 발송 내역을 조회합니다.
+    class_id, type으로 필터링이 가능합니다.
     """
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
@@ -162,14 +170,16 @@ async def get_message_history(
         teacher_id=teacher_id,
         academy_id=current_user.academy_id,
         page=page,
-        page_size=page_size
+        limit=limit,
+        class_id=class_id,
+        message_type=type
     )
 
     return MessageHistoryResponse(
         items=items,
         total=total,
         page=page,
-        page_size=page_size
+        limit=limit
     )
 
 

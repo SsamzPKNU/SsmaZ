@@ -3,7 +3,7 @@ Message 모델 정의
 단체 메시지 발송 내역을 저장하는 테이블
 """
 
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Text, Enum
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Text, Enum, ForeignKey
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -15,6 +15,13 @@ class MessageTargetGroup(str, enum.Enum):
     STUDENTS = "students"            # 학생 전체
     TEACHERS = "teachers"            # 선생님 전체
     SPECIFIC_CLASSES = "specific_classes"  # 특정 반
+
+
+class MessageType(str, enum.Enum):
+    """메시지 유형"""
+    NORMAL = "normal"
+    URGENT = "urgent"
+    NOTICE = "notice"
 
 
 class MessageStatus(str, enum.Enum):
@@ -63,7 +70,20 @@ class Message(Base):
         nullable=False,
         comment="학원 ID"
     )
-    
+
+    teacher_id = Column(
+        Integer,
+        ForeignKey("Users.user_id"),
+        nullable=True,
+        comment="발송 교사 ID"
+    )
+
+    class_id = Column(
+        Integer,
+        nullable=True,
+        comment="대상 반 ID"
+    )
+
     target_group = Column(
         Enum(MessageTargetGroup),
         nullable=False,
@@ -87,7 +107,20 @@ class Message(Base):
         nullable=False,
         comment="내용"
     )
-    
+
+    message_type = Column(
+        Enum(MessageType, values_callable=lambda x: [e.value for e in x]),
+        default=MessageType.NORMAL,
+        nullable=False,
+        comment="메시지 유형 (normal, urgent, notice)"
+    )
+
+    template_id = Column(
+        Integer,
+        nullable=True,
+        comment="사용한 템플릿 ID"
+    )
+
     sent_count = Column(
         Integer,
         default=0,

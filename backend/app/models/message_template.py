@@ -3,9 +3,20 @@ MessageTemplate 모델 정의
 메시지 템플릿을 저장하는 테이블
 """
 
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, Index, Enum
 from sqlalchemy.sql import func
 from app.core.database import Base
+import enum
+
+
+class TemplateCategory(str, enum.Enum):
+    """템플릿 카테고리"""
+    ATTENDANCE = "출석"
+    EXAM = "시험"
+    GRADE = "성적"
+    ASSIGNMENT = "과제"
+    NOTICE = "공지"
+    GENERAL = "일반"
 
 
 class MessageTemplate(Base):
@@ -57,6 +68,13 @@ class MessageTemplate(Base):
         Text,
         nullable=False,
         comment="템플릿 내용"
+    )
+
+    category = Column(
+        Enum(TemplateCategory, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+        default=TemplateCategory.GENERAL,
+        comment="템플릿 카테고리"
     )
 
     created_at = Column(

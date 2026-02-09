@@ -71,6 +71,7 @@ from app.models.schedule import Schedule
 from app.models.support import Inquiry, FAQ, Notice
 from app.models.invoice import Invoice
 from app.models.message_template import MessageTemplate
+from app.models.message_recipient import MessageRecipient
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
