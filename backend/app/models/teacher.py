@@ -3,7 +3,7 @@ Teacher 모델 정의
 선생님 정보를 저장하는 테이블
 """
 
-from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, Date, Enum
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, Date, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -111,13 +111,27 @@ class Teacher(Base):
         comment="시급 (비정규직용, 원 단위)"
     )
 
+    memo = Column(
+        Text,
+        nullable=True,
+        comment="관리자 메모"
+    )
+
     created_at = Column(
         TIMESTAMP,
         server_default=func.now(),
         nullable=False,
         comment="생성 시간"
     )
-    
+
+    updated_at = Column(
+        TIMESTAMP,
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
+        comment="수정 시간"
+    )
+
     # Relationships
     user = relationship("app.models.user.User", backref="teacher", uselist=False)
     
