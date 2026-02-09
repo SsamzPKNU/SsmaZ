@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
@@ -34,6 +34,7 @@ class AttendanceCheckRequest(AttendanceBase):
 
 class AttendanceResponse(AttendanceBase):
     att_id: int
+    status: str  # AttendanceBase의 Enum을 str로 오버라이드 (하원 표시 지원)
     check_in_at: Optional[datetime]
     check_out_at: Optional[datetime]
     attendance_date: date
@@ -41,6 +42,32 @@ class AttendanceResponse(AttendanceBase):
 
     class Config:
         from_attributes = True
+
+    @model_validator(mode='before')
+    @classmethod
+    def apply_display_status(cls, data):
+        """check_out_at이 있으면 status를 '하원'으로 변환"""
+        if hasattr(data, '__dict__'):  # ORM 객체인 경우
+            check_out_at = getattr(data, 'check_out_at', None)
+            status_val = getattr(data, 'status', None)
+            if hasattr(status_val, 'value'):
+                status_val = status_val.value
+            if check_out_at is not None:
+                return {
+                    'att_id': data.att_id,
+                    'student_id': data.student_id,
+                    'status': '하원',
+                    'method': data.method,
+                    'check_in_at': data.check_in_at,
+                    'check_out_at': data.check_out_at,
+                    'attendance_date': data.attendance_date,
+                    'is_notified': data.is_notified,
+                }
+        elif isinstance(data, dict):  # dict인 경우
+            check_out_at = data.get('check_out_at')
+            if check_out_at is not None:
+                data['status'] = '하원'
+        return data
 
 class AttendanceUpdate(BaseModel):
     check_out_at: Optional[datetime] = None

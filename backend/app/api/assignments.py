@@ -18,6 +18,7 @@ from app.schemas.assignment import (
     QuestionResponse, QuestionStudentResponse
 )
 from app.schemas.submission import SubmissionWithStudentItem, SubmissionWithStudentListResponse
+from app.models.teacher import Teacher
 
 router = APIRouter()
 
@@ -169,10 +170,17 @@ async def create_assignment(
     """
     과제 생성 (TEACHER, ADMIN)
     """
+    # teacher_id 조회
+    teacher = db.query(Teacher).filter(
+        Teacher.academy_id == current_user.academy_id,
+        Teacher.user_id == current_user.user_id
+    ).first()
+    teacher_id_val = teacher.teacher_id if teacher else current_user.user_id
+
     # 과제 생성
     assignment = Assignment(
         academy_id=current_user.academy_id,
-        teacher_id=current_user.user_id,
+        teacher_id=teacher_id_val,
         title=data.title,
         description=data.description,
         class_id=data.class_id,

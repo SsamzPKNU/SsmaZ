@@ -29,6 +29,7 @@ from app.schemas.teacher_app import (
     ClassAttendanceSummaryResponse
 )
 from app.models.attendance import AttendanceMethod
+from app.services.attendance_service import get_display_status
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
 
@@ -335,7 +336,7 @@ class TeacherAppService:
         recent_attendance = [
             {
                 "date": record.attendance_date.isoformat(),
-                "status": record.status.value
+                "status": get_display_status(record.status.value, record.check_out_at)
             }
             for record in recent_records
         ]
@@ -409,7 +410,7 @@ class TeacherAppService:
                 student_id=record.student_id,
                 student_name=record.student.name,
                 attendance_date=record.attendance_date,
-                status=record.status.value,
+                status=get_display_status(record.status.value, record.check_out_at),
                 check_in_time=record.check_in_at.strftime("%H:%M") if record.check_in_at else None,
                 check_out_time=record.check_out_at.strftime("%H:%M") if record.check_out_at else None,
                 memo=record.memo
@@ -507,7 +508,7 @@ class TeacherAppService:
             student_id=new_record.student_id,
             student_name=student.name,
             attendance_date=new_record.attendance_date,
-            status=new_record.status.value,
+            status=get_display_status(new_record.status.value, new_record.check_out_at),
             check_in_time=attendance_data.check_in_time,
             check_out_time=attendance_data.check_out_time,
             memo=new_record.memo
@@ -639,7 +640,7 @@ class TeacherAppService:
                 result_students.append(ClassAttendanceStudentItem(
                     student_id=student.student_id,
                     student_name=student.name,
-                    status=attendance.status.value,
+                    status=get_display_status(attendance.status.value, attendance.check_out_at),
                     check_in_at=attendance.check_in_at.strftime("%H:%M") if attendance.check_in_at else None,
                     check_out_at=attendance.check_out_at.strftime("%H:%M") if attendance.check_out_at else None,
                     memo=attendance.memo,
@@ -871,7 +872,7 @@ class TeacherAppService:
             student_id=attendance.student_id,
             student_name=student.name,
             attendance_date=attendance.attendance_date,
-            status=attendance.status.value,
+            status=get_display_status(attendance.status.value, attendance.check_out_at),
             check_in_time=check_in_time,
             check_out_time=check_out_time,
             memo=attendance.memo

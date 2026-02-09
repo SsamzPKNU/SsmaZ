@@ -16,6 +16,12 @@ def send_sms_notification(parent_phone: str, message: str) -> bool:
     # 가상으로 성공 처리
     return True
 
+def get_display_status(status_value: str, check_out_at) -> str:
+    """check_out_at이 존재하면 '하원' 반환, 아니면 원래 상태값 반환"""
+    if check_out_at is not None:
+        return "하원"
+    return status_value
+
 class AttendanceService:
     @staticmethod
     def check_attendance(
@@ -337,7 +343,7 @@ class AttendanceService:
                 "class_id": s_class_id,
                 "class_name": class_name,
                 "attendance_date": att.attendance_date,
-                "status": att.status.value,
+                "status": get_display_status(att.status.value, att.check_out_at),
                 "check_in_at": att.check_in_at,
                 "check_out_at": att.check_out_at,
                 "memo": att.memo

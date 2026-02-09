@@ -12,6 +12,7 @@ from app.models.assignment import Assignment
 from app.models.student import Student
 from app.models.class_model import Class
 from app.models.user import User
+from app.models.teacher import Teacher
 
 
 class AdminGradeService:
@@ -271,9 +272,9 @@ class AdminGradeService:
                 class_obj = db.query(Class).filter(Class.class_id == assignment.class_id).first()
                 class_name = class_obj.class_name if class_obj else None
 
-            # 선생님 정보 조회
-            teacher = db.query(User).filter(User.user_id == assignment.teacher_id).first()
-            teacher_name = teacher.name if teacher else "알 수 없음"
+            # 선생님 정보 조회 (teacher_id는 Teachers PK)
+            teacher_record = db.query(Teacher).filter(Teacher.teacher_id == assignment.teacher_id).first()
+            teacher_name = teacher_record.name if teacher_record else "알 수 없음"
 
             records.append({
                 "assignment_id": assignment.assignment_id,

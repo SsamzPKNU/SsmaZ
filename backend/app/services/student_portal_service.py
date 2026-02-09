@@ -12,6 +12,7 @@ from calendar import monthrange
 from app.models.user import User
 from app.models.student import Student
 from app.models.attendance import Attendance, AttendanceStatus
+from app.services.attendance_service import get_display_status
 from app.models.submission import Submission, SubmissionStatus, Answer
 from app.models.assignment import Assignment, Question
 from app.models.schedule import Schedule
@@ -112,7 +113,7 @@ class StudentPortalService:
                 {
                     "att_id": r.att_id,
                     "attendance_date": r.attendance_date,
-                    "status": r.status.value if r.status else None,
+                    "status": get_display_status(r.status.value, r.check_out_at) if r.status else None,
                     "check_in_at": r.check_in_at,
                     "check_out_at": r.check_out_at,
                     "memo": r.memo

@@ -57,7 +57,7 @@ async def get_print_assignments(
     query = db.query(Assignment).filter(
         and_(
             Assignment.academy_id == current_user.academy_id,
-            Assignment.teacher_id == current_user.user_id,
+            Assignment.teacher_id == teacher_id,
             Assignment.is_active == True,
             Assignment.assignment_type == AssignmentType.NORMAL
         )
@@ -117,7 +117,7 @@ async def get_print_exams(
     query = db.query(Assignment).filter(
         and_(
             Assignment.academy_id == current_user.academy_id,
-            Assignment.teacher_id == current_user.user_id
+            Assignment.teacher_id == teacher_id
         )
     )
 

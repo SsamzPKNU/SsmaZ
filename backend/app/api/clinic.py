@@ -15,6 +15,7 @@ from app.schemas.clinic import (
     ClinicListResponse, ClinicListItem, ClinicPreviewResponse
 )
 from app.services.clinic_service import generate_clinic, get_wrong_questions, get_student_clinics
+from app.models.teacher import Teacher
 
 router = APIRouter()
 
@@ -109,11 +110,18 @@ async def create_clinic(
         )
 
     try:
+        # teacher_id 조회
+        teacher = db.query(Teacher).filter(
+            Teacher.academy_id == current_user.academy_id,
+            Teacher.user_id == current_user.user_id
+        ).first()
+        teacher_id_val = teacher.teacher_id if teacher else current_user.user_id
+
         clinic_assignment = generate_clinic(
             db=db,
             submission_id=data.submission_id,
             clinic_type=data.clinic_type,
-            teacher_id=current_user.user_id,
+            teacher_id=teacher_id_val,
             title=data.title,
             due_date=data.due_date
         )

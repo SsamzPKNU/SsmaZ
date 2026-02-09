@@ -25,7 +25,6 @@ class TeacherAnalyticsService:
     def get_question_analysis(
         db: Session,
         teacher_id: int,
-        user_id: int,
         academy_id: int,
         analysis_type: Optional[str] = None,
         item_id: Optional[int] = None,
@@ -44,7 +43,7 @@ class TeacherAnalyticsService:
         query = db.query(Assignment).filter(
             and_(
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         )
 
@@ -205,7 +204,6 @@ class TeacherAnalyticsService:
     def get_unit_stats(
         db: Session,
         teacher_id: int,
-        user_id: int,
         academy_id: int,
         class_id: Optional[int] = None,
         start_date: Optional[date] = None,
@@ -222,7 +220,7 @@ class TeacherAnalyticsService:
         query = db.query(Assignment).filter(
             and_(
                 Assignment.academy_id == academy_id,
-                Assignment.teacher_id == user_id
+                Assignment.teacher_id == teacher_id
             )
         )
 

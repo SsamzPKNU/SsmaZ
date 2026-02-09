@@ -51,7 +51,6 @@ async def get_question_analysis(
     items = TeacherAnalyticsService.get_question_analysis(
         db=db,
         teacher_id=teacher_id,
-        user_id=current_user.user_id,
         academy_id=current_user.academy_id,
         analysis_type=type,
         item_id=item_id,
@@ -123,7 +122,6 @@ async def get_unit_stats(
     items = TeacherAnalyticsService.get_unit_stats(
         db=db,
         teacher_id=teacher_id,
-        user_id=current_user.user_id,
         academy_id=current_user.academy_id,
         class_id=class_id,
         start_date=start_date,

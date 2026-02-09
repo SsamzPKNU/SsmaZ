@@ -245,7 +245,7 @@ async def create_clinic_assignment(
 
     clinic_assignment = Assignment(
         academy_id=current_user.academy_id,
-        teacher_id=current_user.user_id,
+        teacher_id=teacher_id,
         title=clinic_title,
         description=f"{student.name} 학생의 오답 클리닉",
         due_date=data.due_date,

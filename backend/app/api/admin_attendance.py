@@ -36,7 +36,7 @@ from app.schemas.admin_grade import (
     AdminStudentAssignmentStats
 )
 from app.services.teacher_attendance_service import TeacherAttendanceService
-from app.services.attendance_service import AttendanceService
+from app.services.attendance_service import AttendanceService, get_display_status
 from app.services.admin_grade_service import AdminGradeService
 from datetime import date
 from typing import Optional
@@ -300,7 +300,7 @@ async def create_student_attendance(
         class_id=student.class_id,
         class_name=class_obj.class_name if class_obj else None,
         attendance_date=attendance.attendance_date,
-        status=attendance.status.value,
+        status=get_display_status(attendance.status.value, attendance.check_out_at),
         check_in_at=attendance.check_in_at,
         check_out_at=attendance.check_out_at,
         memo=attendance.memo
@@ -363,7 +363,7 @@ async def update_student_attendance(
         class_id=student.class_id,
         class_name=class_obj.class_name if class_obj else None,
         attendance_date=attendance.attendance_date,
-        status=attendance.status.value,
+        status=get_display_status(attendance.status.value, attendance.check_out_at),
         check_in_at=attendance.check_in_at,
         check_out_at=attendance.check_out_at,
         memo=attendance.memo
