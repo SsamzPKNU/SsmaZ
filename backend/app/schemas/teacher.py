@@ -3,7 +3,7 @@
 API 요청/응답 데이터 검증 및 직렬화
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 
 
@@ -32,4 +32,5 @@ class TeacherUpdate(BaseModel):
 
 class ClassAssign(BaseModel):
     """반 배정 요청 스키마"""
-    class_ids: List[int] = Field(..., description="배정할 반 ID 목록")
+    model_config = ConfigDict(populate_by_name=True)
+    class_ids: List[int] = Field(..., alias="classIds", description="배정할 반 ID 목록")
