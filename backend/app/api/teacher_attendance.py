@@ -13,7 +13,10 @@ from app.schemas.teacher_attendance import (
     TeacherCheckOut,
     TeacherAttendanceResponse,
     TeacherAttendanceListResponse,
-    WorkHoursSummary
+    WorkHoursSummary,
+    TeacherAttendanceItem,
+    TeacherAttendanceRecordList,
+    WorkSummaryResponse
 )
 from app.services.teacher_attendance_service import TeacherAttendanceService
 from datetime import date
@@ -65,13 +68,16 @@ async def check_in(
     teacher = get_teacher_from_user(db, current_user)
 
     target_date = None
-    if check_in_data and check_in_data.work_date:
+    memo = None
+    if check_in_data:
         target_date = check_in_data.work_date
+        memo = check_in_data.memo
 
     attendance = TeacherAttendanceService.check_in(
         db=db,
         teacher_id=teacher.teacher_id,
-        target_date=target_date
+        target_date=target_date,
+        memo=memo
     )
     return attendance
 
@@ -102,13 +108,13 @@ async def check_out(
 
 @router.get(
     "/{teacher_id}/attendance",
-    response_model=TeacherAttendanceListResponse,
+    response_model=TeacherAttendanceRecordList,
     summary="출퇴근 기록 조회"
 )
 async def get_attendance_list(
     teacher_id: int,
-    start_date: Optional[date] = Query(None, description="조회 시작일"),
-    end_date: Optional[date] = Query(None, description="조회 종료일"),
+    start_date: Optional[date] = Query(None, alias="startDate", description="조회 시작일"),
+    end_date: Optional[date] = Query(None, alias="endDate", description="조회 종료일"),
     page: int = Query(1, ge=1, description="페이지 번호"),
     limit: int = Query(20, ge=1, le=100, description="페이지당 항목 수"),
     db: Session = Depends(get_db),
@@ -118,8 +124,8 @@ async def get_attendance_list(
     선생님 출퇴근 기록 조회
 
     - **teacher_id**: 선생님 ID
-    - **start_date**: 조회 시작일 (선택)
-    - **end_date**: 조회 종료일 (선택)
+    - **startDate**: 조회 시작일 (선택)
+    - **endDate**: 조회 종료일 (선택)
     - 본인 또는 관리자만 조회 가능
     """
     # 권한 체크: 본인이거나 관리자여야 함
@@ -140,31 +146,30 @@ async def get_attendance_list(
         limit=limit
     )
 
-    return TeacherAttendanceListResponse(
-        records=records,
+    return TeacherAttendanceRecordList(
+        records=[TeacherAttendanceItem(**r) for r in records],
         total=total
     )
 
 
 @router.get(
     "/{teacher_id}/work-summary",
-    response_model=WorkHoursSummary,
+    response_model=WorkSummaryResponse,
     summary="근무시간 요약 조회"
 )
 async def get_work_summary(
     teacher_id: int,
-    start_date: date = Query(..., description="조회 시작일"),
-    end_date: date = Query(..., description="조회 종료일"),
+    start_date: date = Query(..., alias="startDate", description="조회 시작일"),
+    end_date: date = Query(..., alias="endDate", description="조회 종료일"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    선생님 근무시간 요약 및 예상 급여 조회
+    선생님 근무시간 요약 조회
 
     - **teacher_id**: 선생님 ID
-    - **start_date**: 조회 시작일
-    - **end_date**: 조회 종료일
-    - 비정규직(PART_TIME)인 경우 시급 기반 예상 급여 포함
+    - **startDate**: 조회 시작일
+    - **endDate**: 조회 종료일
     """
     # 권한 체크: 본인이거나 관리자여야 함
     if current_user.user_role == UserRole.TEACHER:
@@ -182,4 +187,4 @@ async def get_work_summary(
         end_date=end_date
     )
 
-    return WorkHoursSummary(**summary_data)
+    return WorkSummaryResponse(**summary_data)

@@ -3,7 +3,7 @@ TeacherAttendance 모델 정의
 선생님 출퇴근 기록을 저장하는 테이블
 """
 
-from sqlalchemy import Column, Integer, Boolean, TIMESTAMP, ForeignKey, Date, DateTime
+from sqlalchemy import Column, Integer, Boolean, TIMESTAMP, ForeignKey, Date, DateTime, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -65,11 +65,24 @@ class TeacherAttendance(Base):
         comment="퇴근 시각"
     )
 
+    status = Column(
+        String(20),
+        nullable=False,
+        default="pending",
+        comment="출결 상태 (checked_in, checked_out, late, absent, leave, approved, pending)"
+    )
+
     worked_minutes = Column(
         Integer,
         nullable=False,
         default=0,
         comment="계산된 근무시간 (분)"
+    )
+
+    memo = Column(
+        Text,
+        nullable=True,
+        comment="출근 메모"
     )
 
     is_approved = Column(

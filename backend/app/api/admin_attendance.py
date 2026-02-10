@@ -16,7 +16,10 @@ from app.schemas.teacher_attendance import (
     AdminAttendanceResponse,
     ApproveRequest,
     AdminTeacherAttendancePeriodResponse,
-    AdminTeacherAttendanceUpdate
+    AdminTeacherAttendanceUpdate,
+    AdminTeacherAttendanceItem,
+    AdminTeacherAttendanceListResponse,
+    ApproveSimpleResponse
 )
 from app.schemas.attendance import (
     AdminStudentAttendanceItem,
@@ -49,38 +52,41 @@ router = APIRouter(
 
 @router.get(
     "/teacher-attendance",
-    response_model=AdminAttendanceListResponse,
+    response_model=AdminTeacherAttendanceListResponse,
     summary="전체 선생님 출근현황 조회"
 )
 async def get_all_teacher_attendance(
-    target_date: Optional[date] = Query(None, description="조회 날짜 (미입력 시 오늘)"),
+    target_date: Optional[date] = Query(None, alias="date", description="조회 날짜 (미입력 시 오늘)"),
+    start_date: Optional[date] = Query(None, alias="startDate", description="기간 조회 시작일"),
+    end_date: Optional[date] = Query(None, alias="endDate", description="기간 조회 종료일"),
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_admin_user)
 ):
     """
-    특정일 전체 선생님 출근현황 조회 (관리자 전용)
+    전체 선생님 출근현황 조회 (관리자 전용)
 
-    - **target_date**: 조회 날짜 (미입력 시 오늘)
-    - 해당 학원 소속 선생님만 조회
+    - **date**: 특정일 조회 (미입력 시 오늘). 미출근 강사는 absent로 포함
+    - **startDate** + **endDate**: 기간 조회 (출결 기록이 있는 건만)
     """
     query_date = target_date or date.today()
 
     records = TeacherAttendanceService.get_all_attendance_by_date(
         db=db,
         academy_id=admin_user.academy_id,
-        target_date=query_date
+        target_date=query_date,
+        start_date=start_date,
+        end_date=end_date
     )
 
-    return AdminAttendanceListResponse(
-        query_date=query_date,
-        records=[AdminAttendanceResponse(**r) for r in records],
+    return AdminTeacherAttendanceListResponse(
+        records=[AdminTeacherAttendanceItem(**r) for r in records],
         total=len(records)
     )
 
 
 @router.patch(
     "/attendance/{attendance_id}/approve",
-    response_model=TeacherAttendanceResponse,
+    response_model=ApproveSimpleResponse,
     summary="출퇴근 기록 승인"
 )
 async def approve_attendance(
@@ -94,14 +100,14 @@ async def approve_attendance(
     - **attendance_id**: 출퇴근 기록 ID
     - 승인 시 승인자 ID와 승인 상태가 기록됨
     """
-    attendance = TeacherAttendanceService.approve_attendance(
+    TeacherAttendanceService.approve_attendance(
         db=db,
         attendance_id=attendance_id,
         admin_user_id=admin_user.user_id,
         academy_id=admin_user.academy_id
     )
 
-    return attendance
+    return ApproveSimpleResponse(success=True, message="승인되었습니다")
 
 
 # ==================== 선생님 출퇴근 관리 (확장) ====================

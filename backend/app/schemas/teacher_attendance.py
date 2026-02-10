@@ -3,7 +3,7 @@
 API 요청/응답 데이터 검증 및 직렬화
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime, date
 
@@ -11,11 +11,13 @@ from datetime import datetime, date
 class TeacherCheckIn(BaseModel):
     """출근 요청 스키마"""
     work_date: Optional[date] = Field(None, description="근무일 (미입력 시 오늘)")
+    memo: Optional[str] = Field(None, description="출근 메모")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "work_date": "2026-01-27"
+                "work_date": "2026-01-27",
+                "memo": "오늘 보충수업 예정"
             }
         }
 
@@ -187,3 +189,71 @@ class AdminTeacherAttendanceUpdate(BaseModel):
                 "is_approved": True
             }
         }
+
+
+# ==================== 프론트엔드 명세 대응 스키마 ====================
+
+class TeacherAttendanceItem(BaseModel):
+    """개별 출결 기록 (프론트엔드 명세용)"""
+    id: int
+    teacher_id: int = Field(..., serialization_alias="teacherId")
+    teacher_name: str = Field(..., serialization_alias="teacherName")
+    date: date
+    check_in_at: Optional[datetime] = Field(None)
+    check_out_at: Optional[datetime] = Field(None)
+    status: str
+    memo: Optional[str] = None
+    approved: bool
+    worked_minutes: int = Field(serialization_alias="workedMinutes")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class TeacherAttendanceRecordList(BaseModel):
+    """출결 기록 목록 (프론트엔드 명세용)"""
+    records: List[TeacherAttendanceItem]
+    total: int
+
+
+class WorkSummaryResponse(BaseModel):
+    """근무 요약 (프론트엔드 명세용)"""
+    teacher_id: int = Field(..., serialization_alias="teacherId")
+    start_date: date = Field(..., serialization_alias="startDate")
+    end_date: date = Field(..., serialization_alias="endDate")
+    total_days: int = Field(..., serialization_alias="totalDays")
+    total_hours: float = Field(..., serialization_alias="totalHours")
+    avg_hours: float = Field(..., serialization_alias="avgHours")
+    late_count: int = Field(..., serialization_alias="lateCount")
+    absent_count: int = Field(..., serialization_alias="absentCount")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminTeacherAttendanceItem(BaseModel):
+    """관리자 현황 항목 (프론트엔드 명세용)"""
+    id: Optional[int] = None
+    teacher_id: int = Field(..., serialization_alias="teacherId")
+    teacher_name: str = Field(..., serialization_alias="teacherName")
+    subject: Optional[str] = None
+    date: date
+    check_in_at: Optional[datetime] = Field(None)
+    check_out_at: Optional[datetime] = Field(None)
+    status: str
+    memo: Optional[str] = None
+    approved: bool
+    work_minutes: int = Field(0, serialization_alias="workMinutes")
+    work_hours: float = Field(0.0, serialization_alias="workHours")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class AdminTeacherAttendanceListResponse(BaseModel):
+    """관리자 현황 목록 (프론트엔드 명세용)"""
+    records: List[AdminTeacherAttendanceItem]
+    total: int
+
+
+class ApproveSimpleResponse(BaseModel):
+    """승인 간단 응답 (프론트엔드 명세용)"""
+    success: bool
+    message: str

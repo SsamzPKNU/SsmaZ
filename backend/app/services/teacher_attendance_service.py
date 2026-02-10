@@ -13,6 +13,19 @@ from typing import List, Optional, Tuple, Dict, Any
 from datetime import date, datetime
 
 
+def _derive_status(attendance) -> str:
+    """기존 데이터 하위호환용: status 컬럼이 없거나 'pending'인 레코드의 상태 추론"""
+    if hasattr(attendance, 'status') and attendance.status and attendance.status != 'pending':
+        return attendance.status
+    if attendance.is_approved:
+        return "approved"
+    if attendance.check_out_time:
+        return "checked_out"
+    if attendance.check_in_time:
+        return "checked_in"
+    return "pending"
+
+
 class TeacherAttendanceService:
     """선생님 출퇴근 관리 서비스 클래스"""
 
@@ -34,7 +47,8 @@ class TeacherAttendanceService:
     def check_in(
         db: Session,
         teacher_id: int,
-        target_date: Optional[date] = None
+        target_date: Optional[date] = None,
+        memo: Optional[str] = None
     ) -> TeacherAttendance:
         """
         출근 처리
@@ -79,7 +93,9 @@ class TeacherAttendanceService:
             teacher_id=teacher_id,
             date=work_date,
             check_in_time=now,
+            status="checked_in",
             worked_minutes=0,
+            memo=memo,
             is_approved=False
         )
 
@@ -132,6 +148,7 @@ class TeacherAttendanceService:
 
         # 퇴근 시간 기록
         attendance.check_out_time = now
+        attendance.status = "checked_out"
 
         # 근무시간 계산 (분 단위)
         if attendance.check_in_time:
@@ -151,7 +168,7 @@ class TeacherAttendanceService:
         end_date: Optional[date] = None,
         page: int = 1,
         limit: int = 20
-    ) -> Tuple[List[TeacherAttendance], int]:
+    ) -> Tuple[List[dict], int]:
         """
         기간별 출퇴근 기록 조회
 
@@ -164,9 +181,11 @@ class TeacherAttendanceService:
             limit: 페이지당 항목 수
 
         Returns:
-            (출퇴근 기록 목록, 전체 개수)
+            (출퇴근 기록 dict 목록, 전체 개수)
         """
-        query = db.query(TeacherAttendance).filter(
+        query = db.query(TeacherAttendance, Teacher).join(
+            Teacher, TeacherAttendance.teacher_id == Teacher.teacher_id
+        ).filter(
             TeacherAttendance.teacher_id == teacher_id
         )
 
@@ -181,9 +200,24 @@ class TeacherAttendanceService:
 
         # 페이지네이션 (최신순)
         offset = (page - 1) * limit
-        records = query.order_by(TeacherAttendance.date.desc()).offset(offset).limit(limit).all()
+        rows = query.order_by(TeacherAttendance.date.desc()).offset(offset).limit(limit).all()
 
-        return records, total
+        result = []
+        for attendance, teacher in rows:
+            result.append({
+                "id": attendance.id,
+                "teacher_id": attendance.teacher_id,
+                "teacher_name": teacher.name,
+                "date": attendance.date,
+                "check_in_at": attendance.check_in_time,
+                "check_out_at": attendance.check_out_time,
+                "status": _derive_status(attendance),
+                "memo": attendance.memo,
+                "approved": attendance.is_approved,
+                "worked_minutes": attendance.worked_minutes,
+            })
+
+        return result, total
 
     @staticmethod
     def get_work_summary(
@@ -227,6 +261,26 @@ class TeacherAttendanceService:
         total_minutes = result.total_minutes or 0
         total_days = result.total_days or 0
         total_hours = round(total_minutes / 60, 2)
+        avg_hours = round(total_hours / total_days, 2) if total_days > 0 else 0.0
+
+        # 지각/결석 카운트
+        late_count = db.query(func.count(TeacherAttendance.id)).filter(
+            and_(
+                TeacherAttendance.teacher_id == teacher_id,
+                TeacherAttendance.date >= start_date,
+                TeacherAttendance.date <= end_date,
+                TeacherAttendance.status == "late"
+            )
+        ).scalar() or 0
+
+        absent_count = db.query(func.count(TeacherAttendance.id)).filter(
+            and_(
+                TeacherAttendance.teacher_id == teacher_id,
+                TeacherAttendance.date >= start_date,
+                TeacherAttendance.date <= end_date,
+                TeacherAttendance.status == "absent"
+            )
+        ).scalar() or 0
 
         # 예상 급여 계산 (시급 * 시간)
         estimated_salary = None
@@ -238,9 +292,14 @@ class TeacherAttendanceService:
             "teacher_name": teacher.name,
             "period_start": start_date,
             "period_end": end_date,
+            "start_date": start_date,
+            "end_date": end_date,
             "total_minutes": total_minutes,
             "total_hours": total_hours,
             "total_days": total_days,
+            "avg_hours": avg_hours,
+            "late_count": late_count,
+            "absent_count": absent_count,
             "employment_type": teacher.employment_type,
             "hourly_rate": teacher.hourly_rate,
             "estimated_salary": estimated_salary
@@ -250,41 +309,111 @@ class TeacherAttendanceService:
     def get_all_attendance_by_date(
         db: Session,
         academy_id: int,
-        target_date: date
+        target_date: date,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None
     ) -> List[dict]:
         """
-        특정일 전체 선생님 출퇴근 현황 조회 (관리자용)
+        전체 선생님 출퇴근 현황 조회 (관리자용)
+        - target_date만 있으면 해당일 현황 (미출근=absent 포함)
+        - start_date+end_date 있으면 기간 내 기록 반환
 
         Args:
             db: 데이터베이스 세션
             academy_id: 학원 ID
-            target_date: 조회 날짜
+            target_date: 조회 날짜 (단일일)
+            start_date: 기간 조회 시작일
+            end_date: 기간 조회 종료일
 
         Returns:
             출퇴근 현황 목록 (선생님 정보 포함)
         """
-        # 해당 학원 선생님들의 출퇴근 기록 조회
-        records = db.query(TeacherAttendance, Teacher).join(
-            Teacher, TeacherAttendance.teacher_id == Teacher.teacher_id
-        ).filter(
+        from app.models.teacher import TeacherStatus
+
+        # 기간 조회 모드
+        if start_date and end_date:
+            records = db.query(TeacherAttendance, Teacher).join(
+                Teacher, TeacherAttendance.teacher_id == Teacher.teacher_id
+            ).filter(
+                and_(
+                    Teacher.academy_id == academy_id,
+                    TeacherAttendance.date >= start_date,
+                    TeacherAttendance.date <= end_date
+                )
+            ).order_by(TeacherAttendance.date.desc(), Teacher.name).all()
+
+            result = []
+            for attendance, teacher in records:
+                work_minutes = attendance.worked_minutes or 0
+                result.append({
+                    "id": attendance.id,
+                    "teacher_id": teacher.teacher_id,
+                    "teacher_name": teacher.name,
+                    "subject": teacher.subject,
+                    "date": attendance.date,
+                    "check_in_at": attendance.check_in_time,
+                    "check_out_at": attendance.check_out_time,
+                    "status": _derive_status(attendance),
+                    "memo": attendance.memo,
+                    "approved": attendance.is_approved,
+                    "work_minutes": work_minutes,
+                    "work_hours": round(work_minutes / 60, 2),
+                })
+            return result
+
+        # 단일일 조회 모드: LEFT JOIN으로 미출근 강사 포함
+        active_teachers = db.query(Teacher).filter(
             and_(
                 Teacher.academy_id == academy_id,
-                TeacherAttendance.date == target_date
+                Teacher.status == TeacherStatus.ACTIVE
             )
         ).all()
 
+        attendance_map = {}
+        records = db.query(TeacherAttendance).filter(
+            and_(
+                TeacherAttendance.teacher_id.in_([t.teacher_id for t in active_teachers]),
+                TeacherAttendance.date == target_date
+            )
+        ).all()
+        for att in records:
+            attendance_map[att.teacher_id] = att
+
         result = []
-        for attendance, teacher in records:
-            result.append({
-                "id": attendance.id,
-                "teacher_id": teacher.teacher_id,
-                "teacher_name": teacher.name,
-                "date": attendance.date,
-                "check_in_time": attendance.check_in_time,
-                "check_out_time": attendance.check_out_time,
-                "worked_minutes": attendance.worked_minutes,
-                "is_approved": attendance.is_approved
-            })
+        for teacher in active_teachers:
+            att = attendance_map.get(teacher.teacher_id)
+            if att:
+                work_minutes = att.worked_minutes or 0
+                result.append({
+                    "id": att.id,
+                    "teacher_id": teacher.teacher_id,
+                    "teacher_name": teacher.name,
+                    "subject": teacher.subject,
+                    "date": target_date,
+                    "check_in_at": att.check_in_time,
+                    "check_out_at": att.check_out_time,
+                    "status": _derive_status(att),
+                    "memo": att.memo,
+                    "approved": att.is_approved,
+                    "work_minutes": work_minutes,
+                    "work_hours": round(work_minutes / 60, 2),
+                })
+            else:
+                # 미출근 강사
+                result.append({
+                    "id": None,
+                    "teacher_id": teacher.teacher_id,
+                    "teacher_name": teacher.name,
+                    "subject": teacher.subject,
+                    "date": target_date,
+                    "check_in_at": None,
+                    "check_out_at": None,
+                    "status": "absent",
+                    "memo": None,
+                    "approved": False,
+                    "work_minutes": 0,
+                    "work_hours": 0.0,
+                })
 
         return result
 
@@ -341,6 +470,7 @@ class TeacherAttendanceService:
         # 승인 처리
         attendance.is_approved = True
         attendance.approved_by = admin_user_id
+        attendance.status = "approved"
 
         db.commit()
         db.refresh(attendance)
