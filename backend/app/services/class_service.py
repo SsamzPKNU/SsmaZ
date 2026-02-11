@@ -9,7 +9,8 @@ from fastapi import HTTPException, status
 from app.models.class_model import Class, ClassStatus as ModelClassStatus
 from app.models.teacher import Teacher
 from app.models.student import Student
-from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse, ClassStatus
+from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse, ClassStatus, TeacherByLevel
+from app.services.class_teacher_service import ClassTeacherService
 from typing import List, Optional
 
 
@@ -41,9 +42,13 @@ class ClassService:
         """
         query = db.query(Class).filter(Class.academy_id == academy_id)
 
-        # 선생님 필터
+        # 선생님 필터 (수준별 배정 + 레거시)
         if teacher_id:
-            query = query.filter(Class.teacher_id == teacher_id)
+            teacher_class_ids = ClassTeacherService.get_teacher_class_ids(db, teacher_id)
+            if teacher_class_ids:
+                query = query.filter(Class.class_id.in_(teacher_class_ids))
+            else:
+                return []
 
         # 상태 필터
         if status_filter:
@@ -126,9 +131,19 @@ class ClassService:
         )
         
         db.add(new_class)
+        db.flush()
+
+        # 수준별 선생님 배정 처리
+        if class_data.teachers_by_level:
+            for level, tid in class_data.teachers_by_level.items():
+                if level in ("high", "mid", "low") and tid:
+                    ClassTeacherService.assign_teacher(
+                        db, academy_id, new_class.class_id, tid, level
+                    )
+
         db.commit()
         db.refresh(new_class)
-        
+
         return new_class
     
     @staticmethod
@@ -182,16 +197,27 @@ class ClassService:
         # 스키마 필드명 -> DB 컬럼명 매핑
         field_mapping = {"name": "class_name"}
 
+        # teachers_by_level은 별도 처리
+        teachers_by_level = update_data.pop("teachers_by_level", None)
+
         for field, value in update_data.items():
             db_field = field_mapping.get(field, field)
             # status 필드는 모델 Enum으로 변환
             if field == "status" and value is not None:
                 value = ModelClassStatus(value)
             setattr(class_obj, db_field, value)
-        
+
+        # 수준별 선생님 배정 처리
+        if teachers_by_level:
+            for level, tid in teachers_by_level.items():
+                if level in ("high", "mid", "low") and tid:
+                    ClassTeacherService.assign_teacher(
+                        db, academy_id, class_id, tid, level
+                    )
+
         db.commit()
         db.refresh(class_obj)
-        
+
         return class_obj
     
     @staticmethod
@@ -261,6 +287,13 @@ class ClassService:
         # 모델 status -> 스키마 status 변환
         schema_status = ClassStatus(class_obj.status.value) if class_obj.status else ClassStatus.ACTIVE
 
+        # 수준별 선생님 목록
+        teacher_list = ClassTeacherService.get_class_teachers(db, class_obj.class_id)
+        teachers = [
+            TeacherByLevel(level=t["level"], teacherId=t["teacherId"], teacherName=t["teacherName"])
+            for t in teacher_list
+        ]
+
         return ClassResponse(
             id=class_obj.class_id,
             name=class_obj.class_name,
@@ -271,7 +304,8 @@ class ClassService:
             subject=class_obj.subject,
             grade_level=class_obj.grade_level,
             fee=class_obj.fee,
-            status=schema_status
+            status=schema_status,
+            teachers=teachers
         )
     
     @staticmethod

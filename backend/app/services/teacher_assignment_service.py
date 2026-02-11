@@ -13,6 +13,7 @@ from app.models.submission import Submission, Answer, SubmissionStatus
 from app.models.student import Student
 from app.models.class_model import Class
 from app.models.teacher import Teacher
+from app.services.class_teacher_service import ClassTeacherService
 from app.schemas.teacher_assignment import (
     AssignmentCreateRequest, AssignmentUpdateRequest,
     AssignmentListItem, AssignmentDetailResponse, AssignmentStats,
@@ -38,8 +39,8 @@ class TeacherAssignmentService:
         status_filter: Optional[str] = None
     ) -> tuple[List[AssignmentListItem], AssignmentStats]:
         """과제 목록 조회"""
-        # 담당 반 목록
-        classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+        # 담당 반 목록 (수준별 배정 + 레거시)
+        classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
         class_ids = [c.class_id for c in classes]
         class_map = {c.class_id: c.name for c in classes}
 
@@ -317,8 +318,8 @@ class TeacherAssignmentService:
         academy_id: int
     ) -> tuple[List[GradingListItem], int]:
         """채점 대기 목록 조회"""
-        # 담당 반 목록
-        classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+        # 담당 반 목록 (수준별 배정 + 레거시)
+        classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
         class_map = {c.class_id: c.name for c in classes}
 
         # 내가 출제한 과제 중 채점 대기가 있는 것

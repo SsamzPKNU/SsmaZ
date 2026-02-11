@@ -18,6 +18,7 @@ from app.models.student import Student
 from app.models.class_model import Class
 from app.api.auth import get_current_user
 from app.services.teacher_app_service import TeacherAppService
+from app.services.class_teacher_service import ClassTeacherService
 from app.services.pdf_service import generate_assignment_pdf, generate_result_pdf
 from app.schemas.teacher_print import (
     PrintAssignmentItem, PrintAssignmentListResponse,
@@ -50,7 +51,7 @@ async def get_print_assignments(
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
     # 담당 반 정보
-    classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+    classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
     class_map = {c.class_id: c.name for c in classes}
 
     # 과제 조회
@@ -110,7 +111,7 @@ async def get_print_exams(
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
     # 담당 반 정보
-    classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+    classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
     class_map = {c.class_id: c.name for c in classes}
 
     # 과제 조회 (채점된 제출이 있는 과제)
@@ -195,7 +196,7 @@ async def get_print_reports(
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
     # 담당 반 정보
-    classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+    classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
     class_ids = [c.class_id for c in classes]
     class_map = {c.class_id: c.name for c in classes}
 

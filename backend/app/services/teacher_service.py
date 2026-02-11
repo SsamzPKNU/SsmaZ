@@ -12,6 +12,7 @@ from app.models.class_model import Class
 from app.models.user import User, UserRole
 from app.schemas.teacher import TeacherCreate, TeacherUpdate
 from app.core.security import hash_password
+from app.services.class_teacher_service import ClassTeacherService
 from typing import Optional, Tuple, List
 import math
 
@@ -191,21 +192,20 @@ class TeacherService:
 
         teacher.status = TeacherStatus.RESIGNED
 
-        # 담당 반 해제
-        db.query(Class).filter(Class.teacher_id == teacher_id).update(
-            {Class.teacher_id: None}
-        )
+        # 담당 반 해제 (수준별 배정 + 레거시 모두)
+        ClassTeacherService.unassign_all_for_teacher(db, teacher_id)
 
         db.commit()
         return True
 
     @staticmethod
     def get_teacher_classes(db: Session, teacher_id: int) -> List[Class]:
-        return db.query(Class).filter(Class.teacher_id == teacher_id).all()
+        return ClassTeacherService.get_teacher_classes(db, teacher_id)
 
     @staticmethod
     def assign_classes(
-        db: Session, teacher_id: int, academy_id: int, class_ids: List[int]
+        db: Session, teacher_id: int, academy_id: int, class_ids: List[int],
+        level: str = "mid"
     ) -> int:
         teacher = TeacherService.get_teacher_by_id(db, teacher_id, academy_id)
         if not teacher:
@@ -221,9 +221,7 @@ class TeacherService:
             ).first()
             if not cls:
                 continue
-            if cls.teacher_id == teacher_id:
-                continue
-            cls.teacher_id = teacher_id
+            ClassTeacherService.assign_teacher(db, academy_id, class_id, teacher_id, level)
             added += 1
 
         db.commit()
@@ -231,29 +229,36 @@ class TeacherService:
 
     @staticmethod
     def unassign_class(
-        db: Session, teacher_id: int, class_id: int, academy_id: int
+        db: Session, teacher_id: int, class_id: int, academy_id: int,
+        level: Optional[str] = None
     ) -> bool:
-        cls = db.query(Class).filter(
-            and_(
-                Class.class_id == class_id,
-                Class.teacher_id == teacher_id,
-                Class.academy_id == academy_id,
-            )
-        ).first()
+        # 새 테이블에서 해제 시도
+        removed = ClassTeacherService.unassign_teacher(db, class_id, teacher_id, level)
 
-        if not cls:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="해당 반 배정을 찾을 수 없습니다",
-            )
+        if not removed:
+            # fallback: 레거시 teacher_id 해제
+            cls = db.query(Class).filter(
+                and_(
+                    Class.class_id == class_id,
+                    Class.teacher_id == teacher_id,
+                    Class.academy_id == academy_id,
+                )
+            ).first()
 
-        cls.teacher_id = None
+            if not cls:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="해당 반 배정을 찾을 수 없습니다",
+                )
+
+            cls.teacher_id = None
+
         db.commit()
         return True
 
     @staticmethod
     def get_assigned_classes_count(db: Session, teacher_id: int) -> int:
-        return db.query(Class).filter(Class.teacher_id == teacher_id).count()
+        return ClassTeacherService.get_assigned_classes_count(db, teacher_id)
 
     @staticmethod
     def to_response(db: Session, teacher: Teacher) -> dict:
@@ -277,15 +282,24 @@ class TeacherService:
 
     @staticmethod
     def to_detail_response(db: Session, teacher: Teacher) -> dict:
-        """Teacher → camelCase dict (classes 포함) 변환"""
+        """Teacher → camelCase dict (classes + 레벨 정보 포함) 변환"""
         base = TeacherService.to_response(db, teacher)
-        classes = db.query(Class).filter(Class.teacher_id == teacher.teacher_id).all()
+        classes = ClassTeacherService.get_teacher_classes(db, teacher.teacher_id)
+
+        # 배정 레벨 정보 매핑
+        from app.models.class_teacher import ClassTeacherAssignment
+        assignments = db.query(ClassTeacherAssignment).filter(
+            ClassTeacherAssignment.teacher_id == teacher.teacher_id
+        ).all()
+        level_map = {a.class_id: (a.level.value if hasattr(a.level, 'value') else a.level) for a in assignments}
+
         base["classes"] = [
             {
                 "id": cls.class_id,
                 "name": cls.class_name,
                 "subject": cls.subject,
                 "grade": cls.grade_level,
+                "level": level_map.get(cls.class_id),
                 "assignedAt": None,
             }
             for cls in classes

@@ -5,7 +5,7 @@ API 요청/응답 데이터 검증 및 직렬화
 
 from enum import Enum
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 class ClassStatus(str, Enum):
@@ -26,9 +26,20 @@ class ClassBase(BaseModel):
     fee: Optional[int] = Field(None, ge=0, description="수강료 (원)")
 
 
+class TeacherByLevel(BaseModel):
+    """수준별 선생님 정보"""
+    level: str = Field(..., description="수준 (high/mid/low)")
+    teacherId: int = Field(..., description="선생님 ID")
+    teacherName: Optional[str] = Field(None, description="선생님 이름")
+
+
 class ClassCreate(ClassBase):
     """클래스 생성 요청 스키마"""
     status: ClassStatus = Field(default=ClassStatus.ACTIVE, description="반 상태")
+    teachers_by_level: Optional[Dict[str, int]] = Field(
+        None,
+        description="수준별 선생님 배정 (예: {\"high\": 11, \"mid\": 10, \"low\": 12})"
+    )
 
     class Config:
         json_schema_extra = {
@@ -39,7 +50,8 @@ class ClassCreate(ClassBase):
                 "subject": "영어",
                 "grade_level": "중2",
                 "fee": 150000,
-                "status": "active"
+                "status": "active",
+                "teachers_by_level": {"high": 11, "mid": 10, "low": 12}
             }
         }
 
@@ -53,6 +65,10 @@ class ClassUpdate(BaseModel):
     grade_level: Optional[str] = Field(None, max_length=30, description="학년/레벨")
     fee: Optional[int] = Field(None, ge=0, description="수강료 (원)")
     status: Optional[ClassStatus] = Field(None, description="반 상태")
+    teachers_by_level: Optional[Dict[str, int]] = Field(
+        None,
+        description="수준별 선생님 배정 (예: {\"high\": 11, \"mid\": 10, \"low\": 12})"
+    )
 
     class Config:
         json_schema_extra = {
@@ -61,7 +77,8 @@ class ClassUpdate(BaseModel):
                 "capacity": 25,
                 "subject": "수학",
                 "fee": 200000,
-                "status": "active"
+                "status": "active",
+                "teachers_by_level": {"high": 11, "mid": 10, "low": 12}
             }
         }
 
@@ -72,6 +89,7 @@ class ClassResponse(ClassBase):
     teacher_name: Optional[str] = Field(None, description="담당 선생님 이름")
     current_students: int = Field(default=0, description="현재 학생 수")
     status: ClassStatus = Field(default=ClassStatus.ACTIVE, description="반 상태")
+    teachers: List[TeacherByLevel] = Field(default=[], description="수준별 선생님 목록")
 
     class Config:
         from_attributes = True
@@ -86,7 +104,12 @@ class ClassResponse(ClassBase):
                 "subject": "수학",
                 "grade_level": "중3",
                 "fee": 200000,
-                "status": "active"
+                "status": "active",
+                "teachers": [
+                    {"level": "high", "teacherId": 11, "teacherName": "김상급"},
+                    {"level": "mid", "teacherId": 10, "teacherName": "박선생"},
+                    {"level": "low", "teacherId": 12, "teacherName": "이기초"}
+                ]
             }
         }
 

@@ -12,6 +12,7 @@ from app.models.assignment import Assignment, Question, AssignmentType
 from app.models.submission import Submission, Answer, SubmissionStatus
 from app.models.student import Student
 from app.models.class_model import Class
+from app.services.class_teacher_service import ClassTeacherService
 from app.schemas.teacher_analytics import (
     QuestionAnalysisItem, StudentWeaknessItem, StudentWeaknessCategory,
     UnitStatsItem
@@ -116,8 +117,8 @@ class TeacherAnalyticsService:
         class_id: Optional[int] = None
     ) -> List[StudentWeaknessItem]:
         """학생별 취약점 분석"""
-        # 담당 반 목록
-        classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+        # 담당 반 목록 (수준별 배정 + 레거시)
+        classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
         class_ids = [c.class_id for c in classes]
         class_map = {c.class_id: c.name for c in classes}
 

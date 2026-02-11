@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, ClassAssign
 from app.services.teacher_service import TeacherService
+from app.services.class_teacher_service import ClassTeacherService
 from app.models.user import User
 from app.api.deps import get_admin_user
 from typing import Optional
@@ -135,6 +136,14 @@ async def get_teacher_classes(
         )
 
     classes = TeacherService.get_teacher_classes(db, teacher_id)
+
+    # 배정 레벨 정보 매핑
+    from app.models.class_teacher import ClassTeacherAssignment
+    assignments = db.query(ClassTeacherAssignment).filter(
+        ClassTeacherAssignment.teacher_id == teacher_id
+    ).all()
+    level_map = {a.class_id: (a.level.value if hasattr(a.level, 'value') else a.level) for a in assignments}
+
     return {
         "classes": [
             {
@@ -142,6 +151,7 @@ async def get_teacher_classes(
                 "name": cls.class_name,
                 "subject": cls.subject,
                 "grade": cls.grade_level,
+                "level": level_map.get(cls.class_id),
                 "assignedAt": None,
             }
             for cls in classes
@@ -156,12 +166,13 @@ async def assign_classes(
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
-    """선생님에게 반 배정"""
+    """선생님에게 반 배정 (level: high/mid/low, 기본값 mid)"""
     added = TeacherService.assign_classes(
         db=db,
         teacher_id=teacher_id,
         academy_id=admin_user.academy_id,
         class_ids=data.class_ids,
+        level=data.level or "mid",
     )
     return {"success": True, "added": added}
 
@@ -170,14 +181,16 @@ async def assign_classes(
 async def unassign_class(
     teacher_id: int,
     class_id: int,
+    level: Optional[str] = Query(None, description="해제할 수준 (high/mid/low, 미지정 시 전체)"),
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
-    """선생님 반 배정 해제"""
+    """선생님 반 배정 해제 (level 지정 시 해당 수준만 해제)"""
     TeacherService.unassign_class(
         db=db,
         teacher_id=teacher_id,
         class_id=class_id,
         academy_id=admin_user.academy_id,
+        level=level,
     )
     return {"success": True}

@@ -30,6 +30,7 @@ from app.schemas.teacher_app import (
 )
 from app.models.attendance import AttendanceMethod
 from app.services.attendance_service import get_display_status
+from app.services.class_teacher_service import ClassTeacherService
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
 
@@ -71,24 +72,17 @@ class TeacherAppService:
     @staticmethod
     def verify_class_teacher(db: Session, class_id: int, teacher_id: int) -> bool:
         """
-        선생님이 해당 반의 담당인지 확인
-        
+        선생님이 해당 반의 담당인지 확인 (수준별 배정 + 레거시 fallback)
+
         Args:
             db: 데이터베이스 세션
             class_id: 반 ID
             teacher_id: 선생님 ID
-            
+
         Returns:
             bool: 담당 선생님 여부
         """
-        class_obj = db.query(Class).filter(
-            and_(
-                Class.class_id == class_id,
-                Class.teacher_id == teacher_id
-            )
-        ).first()
-        
-        return class_obj is not None
+        return ClassTeacherService.is_teacher_assigned(db, class_id, teacher_id)
     
     @staticmethod
     def verify_student_teacher(db: Session, student_id: int, teacher_id: int, academy_id: int) -> bool:
@@ -131,27 +125,29 @@ class TeacherAppService:
             TeacherDashboardResponse: 대시보드 데이터
         """
         teacher_id = TeacherAppService.get_teacher_id(db, user_id, academy_id)
-        
+
+        # 담당 반 ID 목록 (수준별 배정 + 레거시)
+        class_ids = ClassTeacherService.get_teacher_class_ids(db, teacher_id)
+
         # 담당 반 수
-        total_classes = db.query(Class).filter(Class.teacher_id == teacher_id).count()
-        
+        total_classes = len(class_ids)
+
         # 담당 학생 수 (담당 반에 속한 학생들)
-        total_students = db.query(Student).join(
-            Class, Student.class_id == Class.class_id
-        ).filter(
-            Class.teacher_id == teacher_id
-        ).count()
-        
+        if class_ids:
+            total_students = db.query(Student).filter(
+                Student.class_id.in_(class_ids)
+            ).count()
+        else:
+            total_students = 0
+
         # 오늘 출석률
         today = date.today()
-        if total_students > 0:
+        if total_students > 0 and class_ids:
             attended = db.query(Attendance).join(
                 Student, Attendance.student_id == Student.student_id
-            ).join(
-                Class, Student.class_id == Class.class_id
             ).filter(
                 and_(
-                    Class.teacher_id == teacher_id,
+                    Student.class_id.in_(class_ids),
                     Attendance.attendance_date == today,
                     Attendance.status.in_([AttendanceStatus.PRESENT, AttendanceStatus.LATE])
                 )
@@ -185,9 +181,9 @@ class TeacherAppService:
             List[TeacherClassResponse]: 담당 반 목록
         """
         teacher_id = TeacherAppService.get_teacher_id(db, user_id, academy_id)
-        
-        classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
-        
+
+        classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
+
         result = []
         for class_obj in classes:
             # 반별 학생 수 계산
@@ -532,13 +528,15 @@ class TeacherAppService:
             List[TeacherStudentResponse]: 전체 학생 목록
         """
         teacher_id = TeacherAppService.get_teacher_id(db, user_id, academy_id)
-        
-        # 담당 반들의 학생 조회
-        students = db.query(Student).join(
-            Class, Student.class_id == Class.class_id
-        ).filter(
-            Class.teacher_id == teacher_id
-        ).all()
+
+        # 담당 반들의 학생 조회 (수준별 배정 + 레거시)
+        class_ids = ClassTeacherService.get_teacher_class_ids(db, teacher_id)
+        if class_ids:
+            students = db.query(Student).filter(
+                Student.class_id.in_(class_ids)
+            ).all()
+        else:
+            students = []
         
         result = []
         for student in students:

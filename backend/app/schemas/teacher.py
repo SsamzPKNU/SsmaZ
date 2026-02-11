@@ -34,3 +34,4 @@ class ClassAssign(BaseModel):
     """반 배정 요청 스키마"""
     model_config = ConfigDict(populate_by_name=True)
     class_ids: List[int] = Field(..., alias="classIds", description="배정할 반 ID 목록")
+    level: Optional[str] = Field("mid", description="배정 수준 (high/mid/low, 기본값: mid)")

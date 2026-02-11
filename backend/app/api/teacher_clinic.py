@@ -18,6 +18,7 @@ from app.models.submission import Submission, Answer, SubmissionStatus
 from app.models.assignment import Assignment, Question
 from app.models.question_bank import QuestionBank
 from app.api.auth import get_current_user
+from app.services.class_teacher_service import ClassTeacherService
 from app.services.teacher_app_service import TeacherAppService
 from app.services.clinic_service import generate_clinic
 from app.schemas.clinic import ClinicType, WrongQuestionInfo
@@ -110,8 +111,8 @@ async def get_wrong_answers(
     """
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
-    # 담당 반 목록
-    classes = db.query(Class).filter(Class.teacher_id == teacher_id).all()
+    # 담당 반 목록 (수준별 배정 + 레거시)
+    classes = ClassTeacherService.get_teacher_classes(db, teacher_id)
     class_ids = [c.class_id for c in classes]
     class_map = {c.class_id: c.name for c in classes}
 

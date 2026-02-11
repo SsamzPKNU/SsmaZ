@@ -14,6 +14,7 @@ from app.models.message_recipient import MessageRecipient, RecipientStatus
 from app.models.student import Student
 from app.models.student_contact import StudentContact
 from app.models.class_model import Class
+from app.services.class_teacher_service import ClassTeacherService
 from app.schemas.teacher_message import (
     TemplateCreateRequest, TemplateUpdateRequest, TemplateResponse,
     MessageSendRequest, MessageSendResponse, SendResultItem,
@@ -388,11 +389,8 @@ class TeacherMessageService:
                 )
             ).order_by(Student.name).all()
         else:
-            # 담당 반 전체
-            classes = db.query(Class).filter(
-                Class.teacher_id == teacher_id
-            ).all()
-            class_ids = [c.class_id for c in classes]
+            # 담당 반 전체 (수준별 배정 + 레거시)
+            class_ids = ClassTeacherService.get_teacher_class_ids(db, teacher_id)
 
             if not class_ids:
                 return []
