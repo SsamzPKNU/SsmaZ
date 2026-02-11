@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 # 시스템 프롬프트: AI 역할과 제약 조건 명시
 SYSTEM_PROMPT = """당신은 학원 운영을 돕는 친절하고 예의 바른 상담원입니다.
-오직 [Context]로 제공된 정보만을 바탕으로 답변해주세요.
 
 [답변 규칙]
 1. 제공된 정보에 답이 없으면 "죄송합니다만, 해당 내용은 등록된 정보가 없어 안내가 어렵습니다. 학원으로 직접 문의해 주시면 자세히 안내드리겠습니다."라고 정중히 안내해주세요.
@@ -37,7 +36,7 @@ OLLAMA_OPTIONS = {
     "temperature": 0.15,     # 약간의 자연스러움 유지 (0은 너무 기계적)
     "num_predict": 500,      # 최대 토큰 수 (물리적 제한)
     "top_p": 0.9,            # 확률 분포 상위 90%에서 샘플링
-    "stop": ["\n\n", "User:", "###"]  # 무한 루프 방지용 중단 토큰
+    "stop": ["\n\n", "User:", "###", "</s>"]  # 무한 루프 방지용 중단 토큰
 }
 
 # 후처리 설정
@@ -320,7 +319,9 @@ class ChatService:
                         try:
                             data = json.loads(line.decode("utf-8"))
                             if "message" in data and "content" in data["message"]:
-                                chunk = data["message"]["content"]
+                                chunk = data["message"]["content"].replace("</s>", "")
+                                if not chunk:
+                                    continue
                                 full_response.append(chunk)
                                 current_text = "".join(full_response)
 
