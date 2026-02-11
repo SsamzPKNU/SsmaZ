@@ -22,7 +22,7 @@ from app.schemas.teacher_assignment import (
 
 
 router = APIRouter(
-    prefix="/api/teacher",
+    prefix="/teacher",
     tags=["선생님 앱 - 과제/채점"]
 )
 

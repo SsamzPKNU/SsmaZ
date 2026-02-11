@@ -29,7 +29,7 @@ from app.schemas.teacher_print import (
 
 
 router = APIRouter(
-    prefix="/api/teacher/print",
+    prefix="/teacher/print",
     tags=["선생님 앱 - 프린트"]
 )
 

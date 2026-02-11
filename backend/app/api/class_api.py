@@ -18,7 +18,7 @@ from typing import List, Optional
 
 # API 라우터 생성
 router = APIRouter(
-    prefix="/api/admin/classes",
+    prefix="/admin/classes",
     tags=["클래스 관리"]
 )
 

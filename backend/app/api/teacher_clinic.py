@@ -25,7 +25,7 @@ from app.schemas.clinic import ClinicType, WrongQuestionInfo
 
 
 router = APIRouter(
-    prefix="/api/teacher/clinic",
+    prefix="/teacher/clinic",
     tags=["선생님 앱 - 클리닉"]
 )
 

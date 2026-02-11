@@ -20,7 +20,7 @@ from app.schemas.teacher_message import (
 
 
 router = APIRouter(
-    prefix="/api/teacher/messages",
+    prefix="/teacher/messages",
     tags=["선생님 앱 - 메시지"]
 )
 

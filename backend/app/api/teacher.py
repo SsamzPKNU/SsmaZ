@@ -16,7 +16,7 @@ import math
 
 
 router = APIRouter(
-    prefix="/api/admin/teachers",
+    prefix="/admin/teachers",
     tags=["선생님 관리"],
 )
 

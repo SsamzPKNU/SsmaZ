@@ -19,7 +19,7 @@ from app.schemas.teacher_analytics import (
 
 
 router = APIRouter(
-    prefix="/api/teacher/analysis",
+    prefix="/teacher/analysis",
     tags=["선생님 앱 - 오답 분석"]
 )
 

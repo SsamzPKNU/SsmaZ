@@ -153,6 +153,16 @@ app.include_router(teacher_analytics_router)  # 선생님 오답 분석 라우�
 app.include_router(teacher_clinic_router)  # 선생님 클리닉 라우터
 app.include_router(teacher_message_router)  # 선생님 메시지 라우터
 app.include_router(teacher_print_router)  # 선생님 프린트 라우터
+
+# 호환성 등록: 기존 /api/... 경로 유지 (모바일 앱 등 직접 호출 클라이언트용)
+app.include_router(teacher_assignment_router, prefix="/api", include_in_schema=False)
+app.include_router(teacher_analytics_router, prefix="/api", include_in_schema=False)
+app.include_router(teacher_clinic_router, prefix="/api", include_in_schema=False)
+app.include_router(teacher_message_router, prefix="/api", include_in_schema=False)
+app.include_router(teacher_print_router, prefix="/api", include_in_schema=False)
+app.include_router(teacher_router, prefix="/api", include_in_schema=False)
+app.include_router(class_router, prefix="/api", include_in_schema=False)
+
 app.include_router(chat_router)  # FAQ 챗봇 라우터
 app.include_router(fcm_token_router)  # FCM 토큰 관리 라우터
 
