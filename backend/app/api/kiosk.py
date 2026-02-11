@@ -3,10 +3,13 @@
 학원 태블릿 키오스크용 엔드포인트
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.student import Student
 from app.schemas.kiosk import (
     StudentLookupRequest,
     StudentLookupResponse,
@@ -20,6 +23,9 @@ from app.schemas.kiosk import (
 )
 from app.services.kiosk_service import KioskService
 from app.services.auth_service import AuthService
+from app.services.push_notification_service import PushNotificationService
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/kiosk", tags=["Kiosk"])
@@ -91,6 +97,19 @@ def process_attendance(
             time=None,
             message="학생 정보를 찾을 수 없습니다."
         )
+
+    # 출결 성공 시 푸시 알림 발송 (check_in/check_out만)
+    if action in ("check_in", "check_out"):
+        try:
+            student = db.query(Student).filter(
+                Student.student_id == request.student_id
+            ).first()
+            if student and student.user_id:
+                PushNotificationService.send_attendance_notification(
+                    db=db, student=student, action=action, time=time
+                )
+        except Exception as e:
+            logger.error(f"[FCM] 출결 푸시 알림 발송 실패: {e}")
 
     # 메시지 생성
     if action == "check_in":

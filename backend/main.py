@@ -47,8 +47,10 @@ from app.api.teacher_clinic import router as teacher_clinic_router
 from app.api.teacher_message import router as teacher_message_router
 from app.api.teacher_print import router as teacher_print_router
 from app.api.chat import router as chat_router
+from app.api.fcm_token import router as fcm_token_router
 from app.services.faq_loader import load_faq_to_chromadb
 from app.services.chat_service import get_chat_service
+from app.services.push_notification_service import PushNotificationService
 import asyncio
 import json
 
@@ -73,6 +75,7 @@ from app.models.invoice import Invoice
 from app.models.message_template import MessageTemplate
 from app.models.message_recipient import MessageRecipient
 from app.models.class_teacher import ClassTeacherAssignment
+from app.models.fcm_token import FCMToken
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -151,6 +154,7 @@ app.include_router(teacher_clinic_router)  # 선생님 클리닉 라우터
 app.include_router(teacher_message_router)  # 선생님 메시지 라우터
 app.include_router(teacher_print_router)  # 선생님 프린트 라우터
 app.include_router(chat_router)  # FAQ 챗봇 라우터
+app.include_router(fcm_token_router)  # FCM 토큰 관리 라우터
 
 # ReviewGenerator 인스턴스 생성
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -212,6 +216,10 @@ async def startup_event():
         print("[Startup] Ollama 모델 Warm-up 완료")
     else:
         print("[Startup] Ollama 모델 Warm-up 실패 - 첫 요청 시 지연 발생 가능")
+
+    # Firebase Admin SDK 초기화 (FCM 푸시 알림)
+    print("[Startup] Firebase Admin SDK 초기화...")
+    PushNotificationService.initialize()
 
     # FAQ 챗봇 Warm-up (내부 발표용이므로 비활성화)
     # print("[Startup] FAQ 챗봇 Warm-up 백그라운드 태스크 시작...")
