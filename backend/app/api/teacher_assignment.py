@@ -19,11 +19,13 @@ from app.schemas.teacher_assignment import (
     GradeSubmissionRequest, GradeSubmissionResponse,
     QuickGradeRequest, QuickGradeResponse
 )
+from app.schemas.common import COMMON_RESPONSES, NOT_FOUND_RESPONSE
 
 
 router = APIRouter(
     prefix="/teacher",
-    tags=["선생님 앱 - 과제/채점"]
+    tags=["선생님 - 채점관리"],
+    responses=COMMON_RESPONSES
 )
 
 
@@ -62,7 +64,7 @@ async def get_assignments(
     )
 
 
-@router.get("/assignments/{assignment_id}", response_model=AssignmentDetailResponse)
+@router.get("/assignments/{assignment_id}", response_model=AssignmentDetailResponse, responses=NOT_FOUND_RESPONSE)
 async def get_assignment_detail(
     assignment_id: int,
     current_user: User = Depends(get_current_user),
@@ -112,7 +114,7 @@ async def create_assignment(
     )
 
 
-@router.put("/assignments/{assignment_id}", response_model=AssignmentDetailResponse)
+@router.put("/assignments/{assignment_id}", response_model=AssignmentDetailResponse, responses=NOT_FOUND_RESPONSE)
 async def update_assignment(
     assignment_id: int,
     data: AssignmentUpdateRequest,
@@ -135,7 +137,7 @@ async def update_assignment(
     )
 
 
-@router.delete("/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND_RESPONSE)
 async def delete_assignment(
     assignment_id: int,
     current_user: User = Depends(get_current_user),
@@ -183,7 +185,7 @@ async def get_grading_list(
     )
 
 
-@router.get("/grading/{assignment_id}/submissions", response_model=SubmissionListResponse)
+@router.get("/grading/{assignment_id}/submissions", response_model=SubmissionListResponse, responses=NOT_FOUND_RESPONSE)
 async def get_assignment_submissions(
     assignment_id: int,
     current_user: User = Depends(get_current_user),
@@ -204,7 +206,7 @@ async def get_assignment_submissions(
     )
 
 
-@router.get("/grading/{assignment_id}/submissions/{student_id}", response_model=StudentSubmissionDetail)
+@router.get("/grading/{assignment_id}/submissions/{student_id}", response_model=StudentSubmissionDetail, responses=NOT_FOUND_RESPONSE)
 async def get_student_submission(
     assignment_id: int,
     student_id: int,
@@ -227,7 +229,7 @@ async def get_student_submission(
     )
 
 
-@router.post("/grading/{assignment_id}/submissions/{student_id}", response_model=GradeSubmissionResponse)
+@router.post("/grading/{assignment_id}/submissions/{student_id}", response_model=GradeSubmissionResponse, responses=NOT_FOUND_RESPONSE)
 async def grade_submission(
     assignment_id: int,
     student_id: int,
@@ -259,7 +261,7 @@ async def grade_submission(
     )
 
 
-@router.post("/grading/{assignment_id}/quick-grade", response_model=QuickGradeResponse)
+@router.post("/grading/{assignment_id}/quick-grade", response_model=QuickGradeResponse, responses=NOT_FOUND_RESPONSE)
 async def quick_grade(
     assignment_id: int,
     data: QuickGradeRequest,

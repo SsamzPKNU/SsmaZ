@@ -24,9 +24,12 @@ from app.services.clinic_service import generate_clinic
 from app.schemas.clinic import ClinicType, WrongQuestionInfo
 
 
+from app.schemas.common import COMMON_RESPONSES
+
 router = APIRouter(
     prefix="/teacher/clinic",
-    tags=["선생님 앱 - 클리닉"]
+    tags=["선생님 - 클리닉생성"],
+    responses=COMMON_RESPONSES
 )
 
 

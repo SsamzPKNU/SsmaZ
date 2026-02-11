@@ -16,11 +16,13 @@ from app.services.teacher_analytics_service import TeacherAnalyticsService
 from app.schemas.teacher_analytics import (
     QuestionAnalysisResponse, StudentWeaknessResponse, UnitStatsResponse
 )
+from app.schemas.common import COMMON_RESPONSES
 
 
 router = APIRouter(
     prefix="/teacher/analysis",
-    tags=["선생님 앱 - 오답 분석"]
+    tags=["선생님 - 오답분석"],
+    responses=COMMON_RESPONSES
 )
 
 
@@ -101,6 +103,7 @@ async def get_student_weakness(
 
 @router.get("/units", response_model=UnitStatsResponse)
 async def get_unit_stats(
+    type: Optional[str] = Query(None, description="분석 유형 (normal, clinic)"),
     class_id: Optional[int] = Query(None, description="반 ID"),
     start_date: Optional[date] = Query(None, description="시작일"),
     end_date: Optional[date] = Query(None, description="종료일"),
@@ -113,6 +116,7 @@ async def get_unit_stats(
     단원(카테고리)별 정답률/오답률 통계를 조회합니다.
 
     Query Parameters:
+    - type: 분석 유형 (normal, clinic)
     - class_id: 반 ID
     - start_date: 시작일
     - end_date: 종료일
@@ -123,6 +127,7 @@ async def get_unit_stats(
         db=db,
         teacher_id=teacher_id,
         academy_id=current_user.academy_id,
+        analysis_type=type,
         class_id=class_id,
         start_date=start_date,
         end_date=end_date

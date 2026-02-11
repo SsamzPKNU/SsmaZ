@@ -206,6 +206,7 @@ class TeacherAnalyticsService:
         db: Session,
         teacher_id: int,
         academy_id: int,
+        analysis_type: Optional[str] = None,
         class_id: Optional[int] = None,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
@@ -224,6 +225,11 @@ class TeacherAnalyticsService:
                 Assignment.teacher_id == teacher_id
             )
         )
+
+        if analysis_type == "clinic":
+            query = query.filter(Assignment.assignment_type == AssignmentType.CLINIC)
+        elif analysis_type == "normal":
+            query = query.filter(Assignment.assignment_type == AssignmentType.NORMAL)
 
         if class_id:
             query = query.filter(Assignment.class_id == class_id)

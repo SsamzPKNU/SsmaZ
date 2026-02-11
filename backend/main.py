@@ -148,18 +148,19 @@ app.include_router(support_router)  # 상담/문의 관리 라우터
 app.include_router(invoice_router)  # 청구서 관리 라우터
 app.include_router(student_payment_router)  # 학생 결제 라우터
 app.include_router(student_portal_router)  # 학생 포털 라우터
-app.include_router(teacher_assignment_router)  # 선생님 과제/채점 라우터
-app.include_router(teacher_analytics_router)  # 선생님 오답 분석 라우터
-app.include_router(teacher_clinic_router)  # 선생님 클리닉 라우터
-app.include_router(teacher_message_router)  # 선생님 메시지 라우터
-app.include_router(teacher_print_router)  # 선생님 프린트 라우터
+# Vite 프록시 대응 (/teacher/* 경로, Swagger 미표시)
+app.include_router(teacher_assignment_router, include_in_schema=False)
+app.include_router(teacher_analytics_router, include_in_schema=False)
+app.include_router(teacher_clinic_router, include_in_schema=False)
+app.include_router(teacher_message_router, include_in_schema=False)
+app.include_router(teacher_print_router, include_in_schema=False)
 
-# 호환성 등록: 기존 /api/... 경로 유지 (모바일 앱 등 직접 호출 클라이언트용)
-app.include_router(teacher_assignment_router, prefix="/api", include_in_schema=False)
-app.include_router(teacher_analytics_router, prefix="/api", include_in_schema=False)
-app.include_router(teacher_clinic_router, prefix="/api", include_in_schema=False)
-app.include_router(teacher_message_router, prefix="/api", include_in_schema=False)
-app.include_router(teacher_print_router, prefix="/api", include_in_schema=False)
+# Swagger 문서 + 직접 호출용 (/api/teacher/* 경로)
+app.include_router(teacher_assignment_router, prefix="/api")
+app.include_router(teacher_analytics_router, prefix="/api")
+app.include_router(teacher_clinic_router, prefix="/api")
+app.include_router(teacher_message_router, prefix="/api")
+app.include_router(teacher_print_router, prefix="/api")
 app.include_router(teacher_router, prefix="/api", include_in_schema=False)
 app.include_router(class_router, prefix="/api", include_in_schema=False)
 
