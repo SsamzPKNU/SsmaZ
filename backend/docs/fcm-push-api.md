@@ -246,7 +246,8 @@ send_to_user(user_id, title, body, data) 호출 시:
 ```
 
 > 프론트엔드에서는 별도 호출 없이, 알림 발송 시 백엔드가 자동으로 이력을 저장합니다.
-> 향후 "알림 내역 조회" API가 필요하면 백엔드에 요청해주세요.
+> 알림 이력 조회 API: `GET /api/student/notifications` → [push-notification-api.md](push-notification-api.md) 참고
+> 추가 알림 유형(과제, 일정, 수납, 메시지)은 [push-notification-api.md](push-notification-api.md) 참고
 
 ---
 
