@@ -76,6 +76,7 @@ from app.models.message_template import MessageTemplate
 from app.models.message_recipient import MessageRecipient
 from app.models.class_teacher import ClassTeacherAssignment
 from app.models.fcm_token import FCMToken
+from app.models.notification_history import NotificationHistory
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address

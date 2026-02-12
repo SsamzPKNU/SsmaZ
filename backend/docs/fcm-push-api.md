@@ -2,7 +2,7 @@
 
 > **Base URL**: `http://192.168.0.11:8000`
 > **인증**: 모든 요청에 `Authorization: Bearer {token}` 헤더 또는 httpOnly 쿠키 필요
-> **최종 수정일**: 2026-02-11
+> **최종 수정일**: 2026-02-12
 
 ---
 
@@ -12,6 +12,8 @@
 2. [FCM 토큰 삭제](#2-fcm-토큰-삭제)
 3. [푸시 알림 수신 데이터 형식](#3-푸시-알림-수신-데이터-형식)
 4. [연동 흐름](#4-연동-흐름)
+5. [알림 이력 관리](#5-알림-이력-관리)
+6. [Firebase 프로젝트 셋업 가이드](#6-firebase-프로젝트-셋업-가이드)
 
 ---
 
@@ -203,6 +205,150 @@
   → 백엔드에서 FCM 푸시 발송
   → 앱에서 알림 수신 (notification + data)
 ```
+
+---
+
+## 5. 알림 이력 관리
+
+모든 푸시 알림 발송 내역은 `notification_history` 테이블에 자동 기록됩니다.
+
+### 저장 구조
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | `int` | 이력 고유 ID |
+| `user_id` | `int` | 수신 대상 사용자 ID |
+| `title` | `string` | 알림 제목 (예: "등원 알림") |
+| `body` | `string` | 알림 본문 (예: "김민수 학생이 등원했습니다. (14:30)") |
+| `notification_type` | `string` | 알림 유형 (`attendance`, `assignment`, `schedule`, `payment` 등) |
+| `data` | `JSON` | 알림 data 페이로드 전체 |
+| `status` | `string` | 발송 상태 |
+| `created_at` | `timestamp` | 발송 시각 |
+
+### 발송 상태 (`status`)
+
+| 값 | 의미 |
+|-----|------|
+| `success` | 1개 이상의 기기에 발송 성공 |
+| `failed` | 모든 기기 발송 실패 (토큰 만료 등) |
+| `skipped` | 발송 건너뜀 (등록된 FCM 토큰 없음 또는 Firebase 미설정) |
+
+### 동작 원리
+
+```
+send_to_user(user_id, title, body, data) 호출 시:
+
+  ├─ FCM 토큰 없음 → status: "skipped" 기록
+  ├─ Firebase 미초기화 → status: "skipped" 기록
+  └─ 발송 시도
+       ├─ 1개 이상 성공 → status: "success" 기록
+       └─ 전부 실패 → status: "failed" 기록
+```
+
+> 프론트엔드에서는 별도 호출 없이, 알림 발송 시 백엔드가 자동으로 이력을 저장합니다.
+> 향후 "알림 내역 조회" API가 필요하면 백엔드에 요청해주세요.
+
+---
+
+## 6. Firebase 프로젝트 셋업 가이드
+
+FCM 푸시 알림을 실제로 동작시키려면 **백엔드**와 **프론트엔드(앱)** 양쪽 모두 Firebase 설정이 필요합니다.
+
+### 6-1. Firebase 프로젝트 생성
+
+1. [Firebase Console](https://console.firebase.google.com/) 접속
+2. **프로젝트 추가** → 프로젝트 이름 입력 (예: `ssmaz-academy`)
+3. Google Analytics는 선택사항 (꺼도 됨)
+4. 프로젝트 생성 완료
+
+### 6-2. 백엔드: 서비스 계정 키 발급
+
+백엔드 서버가 FCM 메시지를 발송하려면 **서비스 계정 키**(JSON)가 필요합니다.
+
+#### 발급 방법
+
+1. Firebase Console → **프로젝트 설정** (톱니바퀴 아이콘)
+2. **서비스 계정** 탭 클릭
+3. **새 비공개 키 생성** 버튼 클릭
+4. JSON 파일이 다운로드됨 (예: `ssmaz-academy-firebase-adminsdk-xxxxx.json`)
+
+
+
+#### 서비스 계정 키 JSON 예시 (구조 참고)
+
+```json
+{
+  "type": "service_account",
+  "project_id": "ssmaz-academy",
+  "private_key_id": "...",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-xxxxx@ssmaz-academy.iam.gserviceaccount.com",
+  "client_id": "...",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token"
+}
+```
+
+### 6-3. 프론트엔드(앱): Firebase 설정
+
+#### Android
+
+1. Firebase Console → **프로젝트 설정** → **일반** 탭
+2. **앱 추가** → Android 아이콘 클릭
+3. 패키지 이름 입력 (예: `com.ssmaz.app`)
+4. `google-services.json` 다운로드 → `android/app/` 에 배치
+5. Gradle 설정:
+
+   ```gradle
+   // android/build.gradle
+   dependencies {
+       classpath 'com.google.gms:google-services:4.4.0'
+   }
+
+   // android/app/build.gradle
+   apply plugin: 'com.google.gms.google-services'
+   dependencies {
+       implementation 'com.google.firebase:firebase-messaging:24.0.0'
+   }
+   ```
+
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     Firebase 프로젝트                             │
+│                    (ssmaz-academy)                               │
+├────────────────────────┬────────────────────────────────────────┤
+│                        │                                        │
+│  서비스 계정 키 (JSON)    │    google-services.json /              │
+│  → 백엔드 서버           │    GoogleService-Info.plist             │
+│                        │    → 프론트엔드 앱                       │
+├────────────────────────┼────────────────────────────────────────┤
+│                        │                                        │
+│  백엔드 (FastAPI)        │    프론트엔드 (앱)                      │
+│  - 서비스 계정으로 인증     │    - Firebase SDK 초기화               │
+│  - FCM 메시지 발송       │    - FCM 토큰 발급                      │
+│                        │    - 토큰을 서버에 등록                    │
+│                        │    - 푸시 알림 수신                       │
+└────────────────────────┴────────────────────────────────────────┘
+
+알림 흐름:
+  학생 키오스크 출석
+    → 백엔드: 출결 처리
+    → 백엔드: Students.user_id로 학부모 계정 식별
+    → 백엔드: fcm_tokens에서 해당 user_id의 토큰 조회
+    → 백엔드: Firebase 서비스 계정 권한으로 FCM 발송
+    → 백엔드: notification_history에 이력 저장
+    → 학부모 앱: 푸시 알림 수신
+```
+
+### 6-5. 필요한 파일 체크리스트
+
+| 구분 | 파일 | 발급처 | 용도 |
+|------|------|--------|------|
+| **백엔드** | `firebase-service-account.json` | Firebase Console → 서비스 계정 → 새 비공개 키 생성 | 서버에서 FCM 메시지 발송 권한 |
+| **Android** | `google-services.json` | Firebase Console → 프로젝트 설정 → 일반 → Android 앱 | 앱에서 Firebase SDK 초기화 |
+| **iOS** | `GoogleService-Info.plist` | Firebase Console → 프로젝트 설정 → 일반 → iOS 앱 | 앱에서 Firebase SDK 초기화 |
+| **iOS** | APNs 인증 키 (.p8) | Apple Developer → Keys | Firebase → Apple 푸시 연동 |
 
 ---
 

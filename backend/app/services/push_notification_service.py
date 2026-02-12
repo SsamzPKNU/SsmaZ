@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.services.fcm_token_service import FCMTokenService
+from app.services.notification_history_service import NotificationHistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +97,54 @@ class PushNotificationService:
     ):
         """사용자의 모든 기기에 푸시 알림 발송"""
         tokens = FCMTokenService.get_tokens_by_user_id(db, user_id)
+
+        # 알림 유형 추출 (data 페이로드의 type 필드)
+        notification_type = data.get("type") if data else None
+
+        if not tokens:
+            # 토큰이 없으면 skipped로 기록
+            NotificationHistoryService.create_log(
+                db=db,
+                user_id=user_id,
+                title=title,
+                body=body,
+                notification_type=notification_type,
+                data=data,
+                status="skipped"
+            )
+            return
+
+        if not cls._initialized:
+            # Firebase 미초기화 상태
+            NotificationHistoryService.create_log(
+                db=db,
+                user_id=user_id,
+                title=title,
+                body=body,
+                notification_type=notification_type,
+                data=data,
+                status="skipped"
+            )
+            for token in tokens:
+                cls.send_push(db, token, title, body, data)
+            return
+
+        # 발송 시도
+        any_success = False
         for token in tokens:
-            cls.send_push(db, token, title, body, data)
+            result = cls.send_push(db, token, title, body, data)
+            if result:
+                any_success = True
+
+        NotificationHistoryService.create_log(
+            db=db,
+            user_id=user_id,
+            title=title,
+            body=body,
+            notification_type=notification_type,
+            data=data,
+            status="success" if any_success else "failed"
+        )
 
     @classmethod
     def send_attendance_notification(
