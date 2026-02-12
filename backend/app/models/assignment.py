@@ -74,7 +74,7 @@ class Assignment(Base):
 
     teacher_id = Column(
         Integer,
-        ForeignKey("Users.user_id", ondelete="CASCADE"),
+        ForeignKey("Teachers.teacher_id", ondelete="CASCADE"),
         nullable=False,
         comment="출제한 선생님 ID"
     )
