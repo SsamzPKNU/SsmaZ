@@ -57,24 +57,8 @@ async def get_current_user(
     if access_token:
         token = access_token
 
-        # [개발용 비활성화] CSRF 토큰 검증 (쿠키 방식일 때만)
-        # csrf_token = request.headers.get("X-CSRF-Token")
-        #
-        # if not csrf_token:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_403_FORBIDDEN,
-        #         detail="CSRF 토큰이 필요합니다",
-        #     )
-        #
-        # if not verify_csrf_token(token, csrf_token):
-        #     raise HTTPException(
-        #         status_code=status.HTTP_403_FORBIDDEN,
-        #         detail="CSRF 토큰이 유효하지 않습니다",
-        #     )
-    
     # 2. Bearer 토큰 헤더에서 토큰 확인 (폴백)
     elif bearer_token:
-        print("bearer_token", bearer_token)
         token = bearer_token
     
     # 3. 토큰이 없는 경우
@@ -228,8 +212,6 @@ async def login(
             user_agent=user_agent
         )
         
-        # [개발용 변경] CSRF 토큰 없이 일반 토큰만 생성
-        # access_token, csrf_token = AuthService.create_user_token_with_csrf(user)
         access_token = AuthService.create_user_token(user)
         
         # 4. httpOnly 쿠키로 JWT 토큰 설정

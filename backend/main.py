@@ -51,8 +51,6 @@ from app.api.fcm_token import router as fcm_token_router
 from app.services.faq_loader import load_faq_to_chromadb
 from app.services.chat_service import get_chat_service
 from app.services.push_notification_service import PushNotificationService
-import asyncio
-import json
 
 # 데이터베이스 및 모델 임포트 (테이블 자동 생성용)
 from app.core.database import engine, Base
@@ -177,73 +175,39 @@ review_generator = ReviewGenerator(
     model_name=MODEL_NAME
 )
 
-
-async def warm_up_faq_background():
-    """
-    FAQ 챗봇 Warm-up (백그라운드)
-
-    서버 시작 후 1초 대기 후 FAQ 질문에 대한 답변을 사전 생성
-    이를 통해 첫 사용자 요청의 지연을 최소화
-    """
-    # 서버 완전 시작 후 1초 대기
-    await asyncio.sleep(1)
-
-    print("[FAQ Warm-up] 백그라운드 Warm-up 시작...")
-
-    try:
-        # FAQ 데이터 로드
-        faq_path = os.path.join(os.path.dirname(__file__), "app", "data", "faq_data.json")
-        if not os.path.exists(faq_path):
-            print(f"[FAQ Warm-up] FAQ 파일 없음: {faq_path}")
-            return
-
-        with open(faq_path, 'r', encoding='utf-8') as f:
-            faq_data = json.load(f)
-
-        # ChatService warm-up 실행
-        chat_service = get_chat_service()
-        cached_count = chat_service.warm_up_faq(faq_data)
-
-        print(f"[FAQ Warm-up] 완료: {cached_count}개 질문 캐싱됨")
-
-    except Exception as e:
-        print(f"[FAQ Warm-up] 오류 발생: {e}")
+logger = logging.getLogger(__name__)
 
 
 @app.on_event("startup")
 async def startup_event():
     """서버 시작 시 초기화"""
     # FAQ 데이터 로드
-    print("[Startup] FAQ 데이터 로드 시작...")
+    logger.info("[Startup] FAQ 데이터 로드 시작...")
     success = load_faq_to_chromadb()
     if success:
-        print("[Startup] FAQ 데이터 로드 완료")
+        logger.info("[Startup] FAQ 데이터 로드 완료")
     else:
-        print("[Startup] FAQ 데이터 로드 실패 - 챗봇 기능이 제한될 수 있습니다")
+        logger.warning("[Startup] FAQ 데이터 로드 실패 - 챗봇 기능이 제한될 수 있습니다")
 
     # Ollama 모델 Warm-up
-    print("[Startup] Ollama 모델 Warm-up 시작...")
+    logger.info("[Startup] Ollama 모델 Warm-up 시작...")
     warmup_success = await review_generator.warm_up()
     if warmup_success:
-        print("[Startup] Ollama 모델 Warm-up 완료")
+        logger.info("[Startup] Ollama 모델 Warm-up 완료")
     else:
-        print("[Startup] Ollama 모델 Warm-up 실패 - 첫 요청 시 지연 발생 가능")
+        logger.warning("[Startup] Ollama 모델 Warm-up 실패 - 첫 요청 시 지연 발생 가능")
 
     # Firebase Admin SDK 초기화 (FCM 푸시 알림)
-    print("[Startup] Firebase Admin SDK 초기화...")
+    logger.info("[Startup] Firebase Admin SDK 초기화...")
     PushNotificationService.initialize()
-
-    # FAQ 챗봇 Warm-up (내부 발표용이므로 비활성화)
-    # print("[Startup] FAQ 챗봇 Warm-up 백그라운드 태스크 시작...")
-    # asyncio.create_task(warm_up_faq_background())
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """서버 종료 시 리소스 정리"""
-    print("[Shutdown] HTTP 클라이언트 정리 중...")
+    logger.info("[Shutdown] HTTP 클라이언트 정리 중...")
     await review_generator.close()
-    print("[Shutdown] 정리 완료")
+    logger.info("[Shutdown] 정리 완료")
 
 
 @app.get("/", tags=["Root"])

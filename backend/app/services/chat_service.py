@@ -99,33 +99,25 @@ class ChatService:
             client.heartbeat()
             return True
         except Exception as e:
-            print(f"ChromaDB 연결 실패: {e}")
+            logger.error(f"ChromaDB 연결 실패: {e}")
             return False
 
     def check_ollama_connection(self) -> bool:
         """Ollama 서버 연결 확인 (requests 사용)"""
-        import logging
-        logger = logging.getLogger(__name__)
-
         try:
             url = f"{self.ollama_url}/api/tags"
             logger.info(f"Ollama 연결 시도: {url}")
-            print(f"[DEBUG] Ollama 연결 시도: {url}", flush=True)
             response = requests.get(url, timeout=30)
             logger.info(f"Ollama 응답: {response.status_code}")
-            print(f"[DEBUG] Ollama 응답: {response.status_code}", flush=True)
             return response.status_code == 200
         except requests.exceptions.Timeout as e:
             logger.error(f"Ollama 타임아웃: {self.ollama_url} - {e}")
-            print(f"[DEBUG] Ollama 타임아웃: {self.ollama_url} - {e}", flush=True)
             return False
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Ollama 연결 오류: {self.ollama_url} - {e}")
-            print(f"[DEBUG] Ollama 연결 오류: {self.ollama_url} - {e}", flush=True)
             return False
         except Exception as e:
             logger.error(f"Ollama 예외: {type(e).__name__}: {e}")
-            print(f"[DEBUG] Ollama 예외: {type(e).__name__}: {e}", flush=True)
             return False
 
     def retrieve_context(self, question: str, top_k: int = 3) -> List[Dict[str, Any]]:
@@ -166,7 +158,7 @@ class ChatService:
             return documents
 
         except Exception as e:
-            print(f"문서 검색 실패: {e}")
+            logger.error(f"문서 검색 실패: {e}")
             return []
 
     def build_flexible_prompt(self, question: str, contexts: List[Dict[str, Any]]) -> str:

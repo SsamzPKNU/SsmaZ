@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, case
 from datetime import datetime, date
@@ -7,12 +8,14 @@ from app.models.class_model import Class
 from app.schemas.attendance import AttendanceResponse, AttendanceStats, AttendanceBatchItem
 from typing import Optional, List, Tuple, Dict, Any
 
+logger = logging.getLogger(__name__)
+
 def send_sms_notification(parent_phone: str, message: str) -> bool:
     """
     (가상) SMS 발송 함수 (인터페이스만 구현)
     실제 서비스(Solapi 등) 연동 시 여기에 구현
     """
-    print(f"[SMS 발송] To: {parent_phone} / Msg: {message}")
+    logger.info(f"[SMS 발송] To: {parent_phone} / Msg: {message}")
     # 가상으로 성공 처리
     return True
 

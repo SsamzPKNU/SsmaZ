@@ -80,14 +80,8 @@ async def get_admin_dashboard(
             ]
         }
     """
-    # 권한 확인 (ADMIN만 접근 가능)
     # TODO: ADMIN 권한 체크 활성화 (현재는 모든 사용자 허용)
-    # if current_user.user_role != UserRole.ADMIN:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="관리자 권한이 필요합니다"
-    #     )
-    
+
     # 현재 사용자의 academy_id로 통계 조회
     academy_id = current_user.academy_id
     

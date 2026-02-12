@@ -4,11 +4,14 @@ FAQ 데이터 로더
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import chromadb
 from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 
 class FAQLoader:
@@ -54,7 +57,7 @@ class FAQLoader:
             count = collection.count()
             return count > 0
         except Exception as e:
-            print(f"[FAQ Loader] 컬렉션 확인 실패: {e}")
+            logger.error(f"[FAQ Loader] 컬렉션 확인 실패: {e}")
             return False
 
     def load_faq_to_chromadb(self, faq_data: List[Dict[str, Any]], force_reload: bool = False) -> bool:
@@ -75,7 +78,7 @@ class FAQLoader:
             if force_reload:
                 try:
                     client.delete_collection(name=self.collection_name)
-                    print(f"[FAQ Loader] 기존 컬렉션 '{self.collection_name}' 삭제됨")
+                    logger.info(f"[FAQ Loader] 기존 컬렉션 '{self.collection_name}' 삭제됨")
                 except Exception:
                     pass  # 컬렉션이 없으면 무시
 
@@ -83,7 +86,7 @@ class FAQLoader:
 
             # 이미 데이터가 있으면 스킵
             if collection.count() > 0 and not force_reload:
-                print(f"[FAQ Loader] 컬렉션에 이미 {collection.count()}개 데이터 존재, 스킵")
+                logger.info(f"[FAQ Loader] 컬렉션에 이미 {collection.count()}개 데이터 존재, 스킵")
                 return True
 
             # 임베딩 모델 로드
@@ -109,7 +112,7 @@ class FAQLoader:
                 })
 
             # 임베딩 생성
-            print(f"[FAQ Loader] {len(documents)}개 FAQ 임베딩 생성 중...")
+            logger.info(f"[FAQ Loader] {len(documents)}개 FAQ 임베딩 생성 중...")
             embeddings = embedding_model.encode(documents).tolist()
 
             # ChromaDB에 추가
@@ -120,11 +123,11 @@ class FAQLoader:
                 metadatas=metadatas
             )
 
-            print(f"[FAQ Loader] {len(ids)}개 FAQ 데이터 로드 완료")
+            logger.info(f"[FAQ Loader] {len(ids)}개 FAQ 데이터 로드 완료")
             return True
 
         except Exception as e:
-            print(f"[FAQ Loader] ChromaDB 로드 실패: {e}")
+            logger.error(f"[FAQ Loader] ChromaDB 로드 실패: {e}")
             return False
 
 
@@ -144,14 +147,14 @@ def load_faq_to_chromadb(force_reload: bool = False) -> bool:
         chromadb_port = int(os.getenv("CHROMADB_PORT", "18000"))
         collection_name = os.getenv("CHROMADB_COLLECTION", "academy_faq")
 
-        print(f"[FAQ Loader] ChromaDB 연결: {chromadb_host}:{chromadb_port}")
+        logger.info(f"[FAQ Loader] ChromaDB 연결: {chromadb_host}:{chromadb_port}")
 
         # FAQ JSON 파일 경로
         current_dir = Path(__file__).parent.parent
         faq_json_path = current_dir / "data" / "faq_data.json"
 
         if not faq_json_path.exists():
-            print(f"[FAQ Loader] FAQ 파일이 없습니다: {faq_json_path}")
+            logger.warning(f"[FAQ Loader] FAQ 파일이 없습니다: {faq_json_path}")
             return False
 
         # FAQLoader 인스턴스 생성
@@ -163,13 +166,13 @@ def load_faq_to_chromadb(force_reload: bool = False) -> bool:
 
         # JSON에서 FAQ 로드
         faq_data = loader.load_faq_from_json(str(faq_json_path))
-        print(f"[FAQ Loader] {len(faq_data)}개 FAQ 데이터 로드됨")
+        logger.info(f"[FAQ Loader] {len(faq_data)}개 FAQ 데이터 로드됨")
 
         # ChromaDB에 저장
         return loader.load_faq_to_chromadb(faq_data, force_reload=force_reload)
 
     except Exception as e:
-        print(f"[FAQ Loader] FAQ 로드 실패: {e}")
+        logger.error(f"[FAQ Loader] FAQ 로드 실패: {e}")
         return False
 
 
@@ -179,4 +182,4 @@ if __name__ == "__main__":
     load_dotenv()
 
     success = load_faq_to_chromadb(force_reload=True)
-    print(f"FAQ 로드 결과: {'성공' if success else '실패'}")
+    logger.info(f"FAQ 로드 결과: {'성공' if success else '실패'}")

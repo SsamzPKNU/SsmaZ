@@ -36,3 +36,25 @@ htmlcov/
 
 # Test accounts
 test-accounts.md
+
+# Documentation
+docs/
+math-csv-db-mapping.md
+
+# Temporary files
+temp_*
+test_*.json
+nul
+
+# Cookie test files
+*cookies*.txt
+cookie_*.txt
+
+# Jupyter Notebook
+*.ipynb
+
+# One-off scripts
+fix_indent.py
+
+# Claude local settings
+.claude/
