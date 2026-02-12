@@ -11,11 +11,45 @@ from app.schemas.attendance import (
     TodayAttendanceResponse,
     AttendanceStats,
     AttendanceBatchRequest,
-    AttendanceBatchResponse
+    AttendanceBatchResponse,
+    AttendanceStatsResponse,
+    AttendancePeriod,
 )
 from app.services.attendance_service import AttendanceService
 
 router = APIRouter()
+
+
+@router.get("/stats", response_model=AttendanceStatsResponse)
+def get_attendance_stats(
+    start_date: date = Query(..., description="조회 시작일 (YYYY-MM-DD)"),
+    end_date: date = Query(..., description="조회 종료일 (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    기간별 출석 통계 조회 (대시보드용)
+    - summary: 전체 기간 출석/지각/결석/조퇴 집계
+    - daily_stats: 날짜별 통계 (차트용)
+    - class_stats: 반별 출석률
+    """
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="start_date는 end_date보다 이전이어야 합니다")
+
+    academy_id = current_user.academy_id
+    result = AttendanceService.get_attendance_stats(
+        db=db,
+        academy_id=academy_id,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    return AttendanceStatsResponse(
+        period=AttendancePeriod(start_date=start_date, end_date=end_date),
+        summary=result["summary"],
+        daily_stats=result["daily_stats"],
+        class_stats=result["class_stats"]
+    )
 
 
 @router.get("/today", response_model=TodayAttendanceResponse)

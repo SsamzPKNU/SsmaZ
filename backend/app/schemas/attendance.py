@@ -117,6 +117,45 @@ class AttendanceBatchResponse(BaseModel):
 
 # ==================== 관리자용 스키마 ====================
 
+class DailyAttendanceStats(BaseModel):
+    """일별 출석 통계"""
+    date: date
+    total: int = 0
+    present: int = 0
+    late: int = 0
+    absent: int = 0
+    early: int = 0
+
+
+class ClassAttendanceStats(BaseModel):
+    """반별 출석 통계"""
+    class_id: Optional[int] = None
+    class_name: Optional[str] = None
+    total_students: int = 0
+    total_records: int = 0
+    present: int = 0
+    late: int = 0
+    absent: int = 0
+    early: int = 0
+    attendance_rate: float = 0.0
+
+
+class AttendancePeriod(BaseModel):
+    """조회 기간"""
+    start_date: date
+    end_date: date
+
+
+class AttendanceStatsResponse(BaseModel):
+    """기간별 출석 통계 응답"""
+    period: AttendancePeriod
+    summary: AttendanceStats
+    daily_stats: List[DailyAttendanceStats]
+    class_stats: List[ClassAttendanceStats]
+
+
+# ==================== 관리자용 스키마 ====================
+
 class AdminStudentAttendanceItem(BaseModel):
     """관리자용 학생 출결 조회 항목"""
     att_id: int

@@ -229,6 +229,115 @@ class AttendanceService:
             "failed_items": failed_items
         }
 
+    # ==================== 통계 메서드 ====================
+
+    @staticmethod
+    def get_attendance_stats(
+        db: Session,
+        academy_id: int,
+        start_date: date,
+        end_date: date
+    ) -> dict:
+        """
+        기간별 출석 통계 조회 (대시보드용)
+
+        Returns:
+            dict: {summary, daily_stats, class_stats}
+        """
+        base_filter = [
+            Attendance.academy_id == academy_id,
+            Attendance.attendance_date >= start_date,
+            Attendance.attendance_date <= end_date,
+        ]
+
+        # 1) summary: 전체 기간 출석 상태별 집계
+        summary_row = db.query(
+            func.count().label("total"),
+            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+            func.sum(case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label("late"),
+            func.sum(case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label("absent"),
+            func.sum(case((Attendance.status == AttendanceStatus.EARLY_LEAVE, 1), else_=0)).label("early"),
+        ).filter(*base_filter).first()
+
+        summary = {
+            "total": summary_row.total or 0,
+            "present": int(summary_row.present or 0),
+            "late": int(summary_row.late or 0),
+            "absent": int(summary_row.absent or 0),
+            "early": int(summary_row.early or 0),
+        }
+
+        # 2) daily_stats: 날짜별 집계
+        daily_rows = db.query(
+            Attendance.attendance_date.label("date"),
+            func.count().label("total"),
+            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+            func.sum(case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label("late"),
+            func.sum(case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label("absent"),
+            func.sum(case((Attendance.status == AttendanceStatus.EARLY_LEAVE, 1), else_=0)).label("early"),
+        ).filter(
+            *base_filter
+        ).group_by(
+            Attendance.attendance_date
+        ).order_by(
+            Attendance.attendance_date
+        ).all()
+
+        daily_stats = [
+            {
+                "date": row.date,
+                "total": row.total or 0,
+                "present": int(row.present or 0),
+                "late": int(row.late or 0),
+                "absent": int(row.absent or 0),
+                "early": int(row.early or 0),
+            }
+            for row in daily_rows
+        ]
+
+        # 3) class_stats: 반별 집계
+        class_rows = db.query(
+            Student.class_id,
+            Class.class_name,
+            func.count(func.distinct(Attendance.student_id)).label("total_students"),
+            func.count().label("total_records"),
+            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label("present"),
+            func.sum(case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label("late"),
+            func.sum(case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label("absent"),
+            func.sum(case((Attendance.status == AttendanceStatus.EARLY_LEAVE, 1), else_=0)).label("early"),
+        ).select_from(Attendance).join(
+            Student, Attendance.student_id == Student.student_id
+        ).outerjoin(
+            Class, Student.class_id == Class.class_id
+        ).filter(
+            *base_filter
+        ).group_by(
+            Student.class_id, Class.class_name
+        ).all()
+
+        class_stats = []
+        for row in class_rows:
+            total_records = row.total_records or 0
+            present = int(row.present or 0)
+            attendance_rate = round((present / total_records) * 100, 1) if total_records > 0 else 0.0
+            class_stats.append({
+                "class_id": row.class_id,
+                "class_name": row.class_name,
+                "total_students": row.total_students or 0,
+                "total_records": total_records,
+                "present": present,
+                "late": int(row.late or 0),
+                "absent": int(row.absent or 0),
+                "early": int(row.early or 0),
+                "attendance_rate": attendance_rate,
+            })
+
+        return {
+            "summary": summary,
+            "daily_stats": daily_stats,
+            "class_stats": class_stats,
+        }
+
     # ==================== 관리자용 메서드 ====================
 
     @staticmethod
