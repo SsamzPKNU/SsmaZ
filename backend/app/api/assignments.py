@@ -19,6 +19,11 @@ from app.schemas.assignment import (
 )
 from app.schemas.submission import SubmissionWithStudentItem, SubmissionWithStudentListResponse
 from app.models.teacher import Teacher
+from app.models.class_model import Class
+from app.services.push_notification_service import PushNotificationService
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -207,6 +212,17 @@ async def create_assignment(
 
     db.commit()
     db.refresh(assignment)
+
+    # 푸시 알림 발송
+    try:
+        if assignment.class_id:
+            class_obj = db.query(Class).filter(Class.class_id == assignment.class_id).first()
+            if class_obj:
+                PushNotificationService.send_assignment_notification(
+                    db, assignment, class_obj.class_name
+                )
+    except Exception as e:
+        logger.error(f"[FCM] 과제 알림 발송 실패: {e}")
 
     # 응답 생성
     questions = db.query(Question).filter(

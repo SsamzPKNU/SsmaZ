@@ -428,7 +428,9 @@ class TeacherAssignmentService:
                 submitted_at=sub.submitted_at,
                 total_score=sub.total_score if sub.status == SubmissionStatus.GRADED else None,
                 max_score=max_score,
-                score_rate=score_rate
+                score_rate=score_rate,
+                wrong_questions=sub.wrong_questions,
+                memo=sub.memo
             ))
 
         return SubmissionListResponse(
@@ -652,6 +654,8 @@ class TeacherAssignmentService:
                 submission.max_score = grade_item.max_score
                 submission.status = SubmissionStatus.GRADED
                 submission.graded_at = now
+                submission.wrong_questions = grade_item.wrong_questions
+                submission.memo = grade_item.memo
             else:
                 # 새 Submission 생성
                 submission = Submission(
@@ -661,7 +665,9 @@ class TeacherAssignmentService:
                     total_score=grade_item.score,
                     max_score=grade_item.max_score,
                     submitted_at=now,
-                    graded_at=now
+                    graded_at=now,
+                    wrong_questions=grade_item.wrong_questions,
+                    memo=grade_item.memo
                 )
                 db.add(submission)
 

@@ -154,6 +154,8 @@ class SubmissionListItem(BaseModel):
     total_score: Optional[int] = None
     max_score: int
     score_rate: Optional[float] = Field(None, description="점수율 (%)")
+    wrong_questions: Optional[str] = Field(None, description="틀린 문항 번호")
+    memo: Optional[str] = Field(None, description="메모")
 
 
 class SubmissionListResponse(BaseModel):

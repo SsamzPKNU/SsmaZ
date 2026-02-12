@@ -8,7 +8,7 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 from app.models.schedule import Schedule
 from app.models.class_model import Class
-from app.schemas.schedule import ScheduleCreate, ScheduleResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleUpdate, ScheduleResponse
 from typing import List, Optional
 
 
@@ -123,6 +123,50 @@ class ScheduleService:
         return db.query(Schedule).filter(
             Schedule.schedule_id == schedule_id
         ).first()
+
+    @staticmethod
+    def update_schedule(
+        db: Session,
+        schedule_id: int,
+        academy_id: int,
+        update_data: ScheduleUpdate
+    ) -> Schedule:
+        """시간표 수정"""
+        schedule = db.query(Schedule).filter(
+            Schedule.schedule_id == schedule_id
+        ).first()
+
+        if not schedule:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="시간표를 찾을 수 없습니다"
+            )
+
+        # 해당 학원의 클래스인지 확인
+        class_obj = db.query(Class).filter(
+            and_(
+                Class.class_id == schedule.class_id,
+                Class.academy_id == academy_id
+            )
+        ).first()
+
+        if not class_obj:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="권한이 없습니다"
+            )
+
+        if update_data.day_of_week is not None:
+            schedule.day_of_week = update_data.day_of_week
+        if update_data.start_time is not None:
+            schedule.start_time = update_data.start_time
+        if update_data.end_time is not None:
+            schedule.end_time = update_data.end_time
+
+        db.commit()
+        db.refresh(schedule)
+
+        return schedule
 
     @staticmethod
     def delete_schedule(

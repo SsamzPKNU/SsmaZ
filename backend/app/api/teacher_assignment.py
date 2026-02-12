@@ -20,6 +20,11 @@ from app.schemas.teacher_assignment import (
     QuickGradeRequest, QuickGradeResponse
 )
 from app.schemas.common import COMMON_RESPONSES, NOT_FOUND_RESPONSE
+from app.models.class_model import Class
+from app.services.push_notification_service import PushNotificationService
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -106,12 +111,30 @@ async def create_assignment(
     """
     teacher_id = TeacherAppService.get_teacher_id(db, current_user.user_id, current_user.academy_id)
 
-    return TeacherAssignmentService.create_assignment(
+    result = TeacherAssignmentService.create_assignment(
         db=db,
         teacher_id=teacher_id,
         academy_id=current_user.academy_id,
         data=data
     )
+
+    # 푸시 알림 발송
+    try:
+        if data.class_id:
+            from app.models.assignment import Assignment
+            assignment = db.query(Assignment).filter(
+                Assignment.assignment_id == result.assignment_id
+            ).first()
+            if assignment:
+                class_obj = db.query(Class).filter(Class.class_id == data.class_id).first()
+                if class_obj:
+                    PushNotificationService.send_assignment_notification(
+                        db, assignment, class_obj.class_name
+                    )
+    except Exception as e:
+        logger.error(f"[FCM] 과제 알림 발송 실패: {e}")
+
+    return result
 
 
 @router.put("/assignments/{assignment_id}", response_model=AssignmentDetailResponse, responses=NOT_FOUND_RESPONSE)

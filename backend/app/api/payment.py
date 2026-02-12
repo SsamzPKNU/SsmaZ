@@ -10,12 +10,18 @@ from app.schemas.payment import (
     PaymentCreate,
     PaymentUpdate,
     PaymentResponse,
-    PaymentListResponse
+    PaymentListResponse,
+    PaymentNotifyRequest
 )
 from app.services.payment_service import PaymentService
+from app.services.push_notification_service import PushNotificationService
 from app.models.user import User
+from app.models.student import Student
 from app.api.auth import get_current_user
 from typing import List
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 # API 라우터 생성
@@ -112,6 +118,21 @@ async def create_payment(
         payment_data=payment_data
     )
 
+    # 푸시 알림 발송
+    try:
+        student = db.query(Student).filter(
+            Student.student_id == payment_data.student_id
+        ).first()
+        if student:
+            PushNotificationService.send_payment_notification(
+                db, student,
+                title="수납 안내",
+                body="수강료 납부 안내가 등록되었습니다",
+                payment_id=new_payment.payment_id
+            )
+    except Exception as e:
+        logger.error(f"[FCM] 수납 알림 발송 실패: {e}")
+
     return PaymentService.to_response(new_payment)
 
 
@@ -147,6 +168,51 @@ async def update_payment(
     )
 
     return PaymentService.to_response(updated_payment)
+
+
+@router.post("/{payment_id}/notify")
+async def send_payment_notification(
+    payment_id: int,
+    notify_data: PaymentNotifyRequest = PaymentNotifyRequest(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    수납 알림 수동 발송
+
+    Path Parameters:
+        - payment_id: 결제 ID
+
+    Request Body (선택):
+        - title: 알림 제목 (기본: "수납 안내")
+        - body: 알림 본문 (기본: "수강료 납부 안내가 등록되었습니다")
+    """
+    academy_id = current_user.academy_id
+
+    payment = PaymentService.get_payment_by_id(db, payment_id, academy_id)
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="수납 내역을 찾을 수 없습니다"
+        )
+
+    student = db.query(Student).filter(
+        Student.student_id == payment.student_id
+    ).first()
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="학생을 찾을 수 없습니다"
+        )
+
+    title = notify_data.title or "수납 안내"
+    body = notify_data.body or "수강료 납부 안내가 등록되었습니다"
+
+    PushNotificationService.send_payment_notification(
+        db, student, title=title, body=body, payment_id=payment_id
+    )
+
+    return {"success": True, "message": "수납 알림이 발송되었습니다"}
 
 
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)

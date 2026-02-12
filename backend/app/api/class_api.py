@@ -7,13 +7,17 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.class_schema import ClassCreate, ClassUpdate, ClassResponse, ClassDetailResponse, ClassStatus
-from app.schemas.schedule import ScheduleCreate, ScheduleResponse, ScheduleListResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleUpdate, ScheduleResponse, ScheduleListResponse
 from app.services.class_service import ClassService
 from app.services.schedule_service import ScheduleService
 from app.models.user import User
 from app.models.student import Student
 from app.api.auth import get_current_user
 from typing import List, Optional
+from app.services.push_notification_service import PushNotificationService
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 # API 라우터 생성
@@ -413,6 +417,69 @@ async def create_schedule(
     )
 
     return ScheduleService.to_response(new_schedule)
+
+
+@router.put("/schedules/{schedule_id}", response_model=ScheduleResponse)
+async def update_schedule(
+    schedule_id: int,
+    schedule_data: ScheduleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    시간표 수정
+
+    Path Parameters:
+        - schedule_id: 시간표 ID
+
+    Request Body:
+        - day_of_week: 요일 (선택)
+        - start_time: 시작 시간 (선택)
+        - end_time: 종료 시간 (선택)
+    """
+    academy_id = current_user.academy_id
+
+    # 수정 전 정보 저장 (알림 body 조합용)
+    old_schedule = ScheduleService.get_schedule_by_id(db, schedule_id)
+    if not old_schedule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="시간표를 찾을 수 없습니다"
+        )
+
+    old_day = old_schedule.day_of_week
+    old_start = old_schedule.start_time
+    old_end = old_schedule.end_time
+
+    updated = ScheduleService.update_schedule(
+        db=db,
+        schedule_id=schedule_id,
+        academy_id=academy_id,
+        update_data=schedule_data
+    )
+
+    # 푸시 알림 발송
+    try:
+        from app.models.class_model import Class as ClassModel
+        class_obj = db.query(ClassModel).filter(ClassModel.class_id == updated.class_id).first()
+        if class_obj:
+            changes = []
+            if schedule_data.day_of_week is not None and schedule_data.day_of_week != old_day:
+                changes.append(f"{old_day} → {schedule_data.day_of_week}")
+            if schedule_data.start_time is not None and schedule_data.start_time != old_start:
+                changes.append(f"{old_start.strftime('%H:%M')} → {schedule_data.start_time.strftime('%H:%M')}")
+            if schedule_data.end_time is not None and schedule_data.end_time != old_end:
+                changes.append(f"~{old_end.strftime('%H:%M')} → ~{schedule_data.end_time.strftime('%H:%M')}")
+
+            if changes:
+                body_text = f"{class_obj.class_name} - {', '.join(changes)}"
+                PushNotificationService.send_schedule_notification(
+                    db, updated.class_id, class_obj.class_name, body_text, updated.schedule_id
+                )
+    except Exception as e:
+        logger.error(f"[FCM] 일정 변경 알림 발송 실패: {e}")
+
+    return ScheduleService.to_response(updated)
 
 
 @router.delete("/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)

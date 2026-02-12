@@ -5,7 +5,7 @@ Submission 모델 정의
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean,
-    Enum, ForeignKey, Index
+    Enum, ForeignKey, Index, Text
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -89,6 +89,18 @@ class Submission(Base):
         DateTime,
         nullable=True,
         comment="채점 완료 시간"
+    )
+
+    wrong_questions = Column(
+        String(500),
+        nullable=True,
+        comment="틀린 문항 번호 (CSV)"
+    )
+
+    memo = Column(
+        Text,
+        nullable=True,
+        comment="메모"
     )
 
     created_at = Column(

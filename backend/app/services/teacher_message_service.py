@@ -15,6 +15,10 @@ from app.models.student import Student
 from app.models.student_contact import StudentContact
 from app.models.class_model import Class
 from app.services.class_teacher_service import ClassTeacherService
+from app.models.teacher import Teacher
+
+import logging
+logger = logging.getLogger(__name__)
 from app.schemas.teacher_message import (
     TemplateCreateRequest, TemplateUpdateRequest, TemplateResponse,
     MessageSendRequest, MessageSendResponse, SendResultItem,
@@ -260,6 +264,19 @@ class TeacherMessageService:
         message.fail_count = failed_count
 
         db.commit()
+
+        # 푸시 알림 발송
+        try:
+            from app.services.push_notification_service import PushNotificationService
+            teacher = db.query(Teacher).filter(
+                Teacher.teacher_id == teacher_id
+            ).first()
+            sender_name = teacher.name if teacher else "선생님"
+            PushNotificationService.send_message_notification(
+                db, data.student_ids, sender_name
+            )
+        except Exception as e:
+            logger.error(f"[FCM] 메시지 알림 발송 실패: {e}")
 
         return MessageSendResponse(
             message=f"메시지 발송 완료 (성공: {sent_count}, 실패: {failed_count})",

@@ -80,6 +80,20 @@ class PaymentResponse(BaseModel):
         }
 
 
+class PaymentNotifyRequest(BaseModel):
+    """수납 알림 발송 요청 스키마"""
+    title: Optional[str] = Field(None, description="알림 제목 (기본: '수납 안내')")
+    body: Optional[str] = Field(None, description="알림 본문 (기본: '수강료 납부 안내가 등록되었습니다')")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "title": "수납 안내",
+                "body": "이번 달 수강료 납부를 확인해주세요"
+            }
+        }
+
+
 class PaymentListResponse(BaseModel):
     """수납 목록 응답 스키마"""
     payments: list[PaymentResponse] = Field(..., description="수납 목록")

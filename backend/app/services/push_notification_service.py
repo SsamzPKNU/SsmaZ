@@ -5,7 +5,7 @@ Firebase Admin SDK를 사용하여 푸시 알림을 발송합니다.
 
 import os
 import logging
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -177,3 +177,98 @@ class PushNotificationService:
         }
 
         cls.send_to_user(db, student.user_id, title, body, data)
+
+    @classmethod
+    def _get_user_ids_by_class(cls, db: Session, class_id: int) -> List[int]:
+        """반 소속 학생들의 user_id 목록 반환 (user_id가 있는 학생만)"""
+        from app.models.student import Student
+        students = db.query(Student).filter(
+            Student.class_id == class_id,
+            Student.user_id.isnot(None)
+        ).all()
+        return [s.user_id for s in students]
+
+    @classmethod
+    def send_assignment_notification(
+        cls,
+        db: Session,
+        assignment,
+        class_name: str
+    ):
+        """과제 알림 발송 - 반 소속 학생들에게"""
+        if not assignment.class_id:
+            return
+
+        user_ids = cls._get_user_ids_by_class(db, assignment.class_id)
+
+        title = "새 과제가 등록되었습니다"
+        body = f"{class_name} - {assignment.title}"
+        data = {
+            "type": "assignment",
+            "assignmentId": str(assignment.assignment_id)
+        }
+
+        for user_id in user_ids:
+            cls.send_to_user(db, user_id, title, body, data)
+
+    @classmethod
+    def send_schedule_notification(
+        cls,
+        db: Session,
+        class_id: int,
+        class_name: str,
+        body_text: str,
+        schedule_id: int
+    ):
+        """일정 변경 알림 발송 - 반 소속 학생들에게"""
+        user_ids = cls._get_user_ids_by_class(db, class_id)
+
+        title = "수업 일정이 변경되었습니다"
+        data = {
+            "type": "schedule",
+            "scheduleId": str(schedule_id)
+        }
+
+        for user_id in user_ids:
+            cls.send_to_user(db, user_id, title, body_text, data)
+
+    @classmethod
+    def send_payment_notification(
+        cls,
+        db: Session,
+        student,
+        title: str,
+        body: str,
+        payment_id: int
+    ):
+        """수납 알림 발송 - 개별 학생에게"""
+        if not student.user_id:
+            return
+
+        data = {
+            "type": "payment",
+            "paymentId": str(payment_id)
+        }
+
+        cls.send_to_user(db, student.user_id, title, body, data)
+
+    @classmethod
+    def send_message_notification(
+        cls,
+        db: Session,
+        student_ids: List[int],
+        sender_name: str
+    ):
+        """메시지 알림 발송 - 대상 학생들에게"""
+        from app.models.student import Student
+
+        title = "새 메시지가 도착했습니다"
+        body = f"{sender_name} 선생님이 메시지를 보냈습니다"
+        data = {"type": "message"}
+
+        for student_id in student_ids:
+            student = db.query(Student).filter(
+                Student.student_id == student_id
+            ).first()
+            if student and student.user_id:
+                cls.send_to_user(db, student.user_id, title, body, data)

@@ -29,6 +29,22 @@ class ScheduleCreate(BaseModel):
         }
 
 
+class ScheduleUpdate(BaseModel):
+    """시간표 수정 요청 스키마"""
+    day_of_week: Optional[str] = Field(None, min_length=1, max_length=10, description="요일 (월, 화, 수, 목, 금, 토, 일)")
+    start_time: Optional[time] = Field(None, description="시작 시간")
+    end_time: Optional[time] = Field(None, description="종료 시간")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "day_of_week": "화",
+                "start_time": "17:00:00",
+                "end_time": "19:00:00"
+            }
+        }
+
+
 class ScheduleResponse(BaseModel):
     """시간표 응답 스키마"""
     schedule_id: int = Field(..., description="시간표 고유 ID")

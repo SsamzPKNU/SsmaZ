@@ -3,7 +3,7 @@
 > **Base URL**: `http://localhost:8000`
 > **Prefix**: 모든 요청에 `/api` prefix 사용
 > **인증**: `Authorization: Bearer {token}` 헤더 또는 httpOnly 쿠키
-> **최종 수정일**: 2026-02-11
+> **최종 수정일**: 2026-02-12
 
 ---
 
@@ -276,7 +276,21 @@ Response Body 없음.
       "submitted_at": "2026-02-15T10:30:00",
       "total_score": null,
       "max_score": 5,
-      "score_rate": null
+      "score_rate": null,
+      "wrong_questions": null,
+      "memo": null
+    },
+    {
+      "student_id": 102,
+      "student_name": "김민수",
+      "class_name": "중1-A반",
+      "status": "GRADED",
+      "submitted_at": "2026-02-15T09:00:00",
+      "total_score": 85,
+      "max_score": 100,
+      "score_rate": 85.0,
+      "wrong_questions": "3,5,7",
+      "memo": "계산 실수 주의"
     }
   ],
   "total": 15,
@@ -284,6 +298,21 @@ Response Body 없음.
   "graded_count": 7
 }
 ```
+
+#### items[] 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `student_id` | `int` | 학생 ID |
+| `student_name` | `string` | 학생 이름 |
+| `class_name` | `string?` | 반 이름 |
+| `status` | `string` | 상태 (`IN_PROGRESS`, `SUBMITTED`, `GRADED`) |
+| `submitted_at` | `datetime?` | 제출 시간 |
+| `total_score` | `int?` | 총점 (채점 완료 시만) |
+| `max_score` | `int` | 만점 |
+| `score_rate` | `float?` | 점수율 (%) |
+| `wrong_questions` | `string?` | 틀린 문항 번호 (CSV, 예: `"3,5,7"`) |
+| `memo` | `string?` | 메모 |
 
 ---
 
@@ -394,8 +423,8 @@ Response Body 없음.
 ```json
 {
   "grades": [
-    { "student_id": 101, "score": 85, "max_score": 100 },
-    { "student_id": 102, "score": 92, "max_score": 100, "wrong_questions": "3,7" }
+    { "student_id": 101, "score": 85, "max_score": 100, "wrong_questions": "3,5,7", "memo": "계산 실수 주의" },
+    { "student_id": 102, "score": 92, "max_score": 100, "wrong_questions": "3", "memo": null }
   ]
 }
 ```
