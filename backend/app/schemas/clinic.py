@@ -12,6 +12,7 @@ class ClinicType(str, Enum):
     """클리닉 유형"""
     SAME = "SAME"          # 동일 문제
     SIMILAR = "SIMILAR"    # 유사 문제 (문제은행에서)
+    ORIGINAL = "ORIGINAL"  # 원본 문제 (프론트엔드 클리닉 생성용)
 
 
 class ClinicGenerateRequest(BaseModel):
