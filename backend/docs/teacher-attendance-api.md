@@ -1,6 +1,6 @@
 # 강사 출결 관리 API 명세서
 
-> **Base URL**: `http://localhost:8000`
+> **Base URL**: `http://192.168.0.11:8000`
 > **인증**: 모든 요청에 `Authorization: Bearer {token}` 헤더 필요
 > **최종 수정일**: 2026-02-10
 

@@ -32,7 +32,7 @@ from datetime import date
 
 # API 라우터 생성
 router = APIRouter(
-    prefix="/api/teacher",
+    prefix="/teacher",
     tags=["선생님 앱"]
 )
 

@@ -31,5 +31,8 @@ htmlcov/
 # Logs
 *.log
 
+# Firebase service account key
+*firebase*adminsdk*.json
+
 # Test accounts
 test-accounts.md
