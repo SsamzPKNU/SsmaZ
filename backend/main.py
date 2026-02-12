@@ -167,6 +167,7 @@ app.include_router(teacher_message_router, prefix="/api")
 app.include_router(teacher_print_router, prefix="/api")
 app.include_router(teacher_attendance_stats_router, prefix="/api")
 app.include_router(teacher_daily_log_router, prefix="/api")
+app.include_router(teacher_app_router, prefix="/api", include_in_schema=False)
 app.include_router(teacher_router, prefix="/api", include_in_schema=False)
 app.include_router(class_router, prefix="/api", include_in_schema=False)
 
