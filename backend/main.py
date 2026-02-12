@@ -46,6 +46,8 @@ from app.api.teacher_analytics import router as teacher_analytics_router
 from app.api.teacher_clinic import router as teacher_clinic_router
 from app.api.teacher_message import router as teacher_message_router
 from app.api.teacher_print import router as teacher_print_router
+from app.api.teacher_attendance_stats import router as teacher_attendance_stats_router
+from app.api.teacher_daily_log import router as teacher_daily_log_router
 from app.api.chat import router as chat_router
 from app.api.fcm_token import router as fcm_token_router
 from app.services.faq_loader import load_faq_to_chromadb
@@ -75,6 +77,7 @@ from app.models.message_recipient import MessageRecipient
 from app.models.class_teacher import ClassTeacherAssignment
 from app.models.fcm_token import FCMToken
 from app.models.notification_history import NotificationHistory
+from app.models.daily_log import DailyLog
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -153,6 +156,8 @@ app.include_router(teacher_analytics_router, include_in_schema=False)
 app.include_router(teacher_clinic_router, include_in_schema=False)
 app.include_router(teacher_message_router, include_in_schema=False)
 app.include_router(teacher_print_router, include_in_schema=False)
+app.include_router(teacher_attendance_stats_router, include_in_schema=False)
+app.include_router(teacher_daily_log_router, include_in_schema=False)
 
 # Swagger 문서 + 직접 호출용 (/api/teacher/* 경로)
 app.include_router(teacher_assignment_router, prefix="/api")
@@ -160,6 +165,8 @@ app.include_router(teacher_analytics_router, prefix="/api")
 app.include_router(teacher_clinic_router, prefix="/api")
 app.include_router(teacher_message_router, prefix="/api")
 app.include_router(teacher_print_router, prefix="/api")
+app.include_router(teacher_attendance_stats_router, prefix="/api")
+app.include_router(teacher_daily_log_router, prefix="/api")
 app.include_router(teacher_router, prefix="/api", include_in_schema=False)
 app.include_router(class_router, prefix="/api", include_in_schema=False)
 
